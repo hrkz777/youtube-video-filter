@@ -31,6 +31,15 @@
         </span>
         <input id="detailed-logging" type="checkbox" role="switch">
       </label>
+      <label id="diagnostic-container" class="profile" hidden>
+        <span>診断パス</span>
+        <select id="diagnostic-stage">
+          <option value="full">D: 通常の全処理</option>
+          <option value="source">A: 入力映像のみ</option>
+          <option value="clamp">B: ClampHighlightsまで</option>
+          <option value="restore">C: Restore CNN VLまで</option>
+        </select>
+      </label>
       <p class="warning">詳細ログを有効にすると継続的にフレーム状態を監視するため、動画再生やブラウザの動作が重くなる可能性があります。</p>
       <p id="status" aria-live="polite"></p>
       <p id="mode-note" class="note">自動では安定性を優先し、Mode Aを使用します。</p>

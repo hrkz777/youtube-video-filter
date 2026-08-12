@@ -17,7 +17,16 @@ assert.equal(manifest.host_permissions.includes("<all_urls>"), false);
 assert.equal(rules[0].condition.urlFilter, "||googlevideo.com/");
 assert.deepEqual(rules[0].condition.resourceTypes, ["media"]);
 
-for (const pipelineName of ["GANUUL", "GANx4UUL", "CNNSoftM", "CNNx2M", "ModeA"]) {
+for (const pipelineName of [
+  "GANUUL",
+  "GANx4UUL",
+  "CNNSoftM",
+  "CNNx2M",
+  "ModeA",
+  "Original",
+  "ClampHighlights",
+  "CNNVL"
+]) {
   assert.match(contentBundle, new RegExp(`\\b${pipelineName}\\b`));
 }
 
@@ -27,7 +36,11 @@ assert.match(contentBundle, /device\.lost/);
 assert.match(contentBundle, /onSubmittedWorkDone/);
 assert.match(popupDocument, /id="detailed-logging"/);
 assert.match(popupDocument, /動作が重くなる可能性があります/);
+assert.match(popupDocument, /id="diagnostic-stage"/);
+assert.match(popupDocument, /A: 入力映像のみ/);
+assert.match(popupDocument, /D: 通常の全処理/);
 assert.match(popupBundle, /detailedLogging/);
+assert.match(popupBundle, /diagnosticStage/);
 
 assert.equal(contentBundle.includes("eval("), false);
 assert.ok((await stat("dist/content.js")).size < 5 * 1024 * 1024);

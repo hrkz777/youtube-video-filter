@@ -29,6 +29,7 @@ npm run build
 
 - Chrome 113以降とWebGPU対応GPUが必要です。
 - 詳細ログモードでは動画・Canvas・WebGPU・フレーム進捗を継続的に監視します。診断処理により動画再生やブラウザの動作が重くなる可能性があるため、通常利用時は無効にしてください。動画URLのクエリ文字列や認証情報は記録しません。
+- 詳細ログモードでは、黒画面の発生箇所を調べるために「入力映像のみ」「ClampHighlightsまで」「Restore CNN VLまで」「通常の全処理」の診断パスを選択できます。詳細ログを無効にすると通常の全処理へ自動的に戻ります。
 - YouTubeの動画配信元をWebGPUテクスチャとして利用するため、`*.googlevideo.com` のメディアレスポンスにYouTube向けCORSヘッダーを設定します。それ以外のサイトや通信には適用しません。
 - HDR動画、DRM保護された動画、非常に高い解像度では、ブラウザやGPUの制約により適用できない場合があります。
 - v4.1 Low resolution experimentは360p以下の動画だけで有効になります。公式推奨の `Restore GAN UUL → Upscale GAN x4 UUL → Restore CNN Soft M → Upscale CNN x2 M` を使用するため、通常モードより大幅に高いGPU性能とVRAMが必要です。

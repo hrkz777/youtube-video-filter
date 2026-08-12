@@ -1,9 +1,12 @@
 import {
   CNNx2M,
   CNNSoftM,
+  CNNVL,
+  ClampHighlights,
   GANUUL,
   GANx4UUL,
   ModeA,
+  Original,
   render
 } from "anime4k-webgpu";
 
@@ -13,6 +16,13 @@ let activeVideo = null;
 let initializationInProgress = false;
 let detailedLogging = false;
 const failedSources = new WeakMap();
+
+const DIAGNOSTIC_STAGE_NAMES = {
+  full: "D: 通常の全処理",
+  source: "A: 入力映像のみ",
+  clamp: "B: ClampHighlightsまで",
+  restore: "C: Restore CNN VLまで"
+};
 
 function report(message, error) {
   const method = error ? "error" : "info";
@@ -216,7 +226,24 @@ function buildLowResolutionExperiment(device, inputTexture) {
   return [restoreGan, upscaleGan, restoreSoft, upscaleCnn];
 }
 
-async function applyAnime4K(video, profile) {
+function buildDiagnosticPipeline(stage, device, inputTexture) {
+  if (stage === "source") {
+    return [new Original({ inputTexture })];
+  }
+
+  const clampHighlights = new ClampHighlights({ device, inputTexture });
+  if (stage === "clamp") {
+    return [clampHighlights];
+  }
+
+  const restore = new CNNVL({
+    device,
+    inputTexture: clampHighlights.getOutputTexture()
+  });
+  return [clampHighlights, restore];
+}
+
+async function applyAnime4K(video, profile, diagnosticStage) {
   if (initializationInProgress || activeVideo === video || !navigator.gpu) {
     if (!navigator.gpu) report("WebGPUが利用できないため、元の映像を表示します");
     return;
@@ -241,12 +268,16 @@ async function applyAnime4K(video, profile) {
   };
 
   try {
-    diagnostic("初期化を開始", { profile, video: getVideoState(video) });
+    diagnostic("初期化を開始", {
+      profile,
+      diagnosticStage: DIAGNOSTIC_STAGE_NAMES[diagnosticStage],
+      video: getVideoState(video)
+    });
     video.crossOrigin = "anonymous";
     await waitForVideoMetadata(video);
     diagnostic("動画メタデータを取得", getVideoState(video));
 
-    if (profile === "v4.1-low-resolution" && video.videoHeight > 360) {
+    if (diagnosticStage === "full" && profile === "v4.1-low-resolution" && video.videoHeight > 360) {
       report(`v4.1低解像度モードは360p以下専用です（現在: ${video.videoHeight}p）。元の映像を表示します`);
       return;
     }
@@ -274,11 +305,14 @@ async function applyAnime4K(video, profile) {
 
         device.pushErrorScope("validation");
         validationScopeActive = true;
-        const pipelines = profile === "v4.1-low-resolution"
-          ? buildLowResolutionExperiment(device, inputTexture)
-          : buildModeA(device, inputTexture, video, canvas);
+        const pipelines = diagnosticStage !== "full"
+          ? buildDiagnosticPipeline(diagnosticStage, device, inputTexture)
+          : profile === "v4.1-low-resolution"
+            ? buildLowResolutionExperiment(device, inputTexture)
+            : buildModeA(device, inputTexture, video, canvas);
         diagnostic("パイプラインを構築", {
           profile,
+          diagnosticStage: DIAGNOSTIC_STAGE_NAMES[diagnosticStage],
           pipelineCount: pipelines.length,
           inputSize: `${video.videoWidth}x${video.videoHeight}`,
           outputSize: `${canvas.width}x${canvas.height}`
@@ -308,7 +342,11 @@ async function applyAnime4K(video, profile) {
     video.classList.add(VIDEO_CLASS);
     video.style.opacity = "0";
     startFrameDiagnostics(video, canvas);
-    const appliedMode = profile === "v4.1-low-resolution" ? "v4.1 Low resolution experiment" : "Mode A";
+    const appliedMode = diagnosticStage !== "full"
+      ? `診断パス ${DIAGNOSTIC_STAGE_NAMES[diagnosticStage]}`
+      : profile === "v4.1-low-resolution"
+        ? "v4.1 Low resolution experiment"
+        : "Mode A";
     report(`Anime4K ${appliedMode}の最初のGPU処理が完了しました (${video.videoWidth}x${video.videoHeight} → ${canvas.width}x${canvas.height})`);
   } catch (error) {
     if (validationScopeActive && renderingDevice) {
@@ -320,11 +358,11 @@ async function applyAnime4K(video, profile) {
   }
 }
 
-function findYouTubeVideo(profile) {
+function findYouTubeVideo(profile, diagnosticStage) {
   const video = document.querySelector("#movie_player video.html5-main-video");
   const sourcePreviouslyFailed = video && failedSources.get(video) === video.currentSrc;
   if (video && video !== activeVideo && !sourcePreviouslyFailed) {
-    applyAnime4K(video, profile);
+    applyAnime4K(video, profile, diagnosticStage);
   }
 }
 
@@ -332,19 +370,24 @@ async function start() {
   const settings = await chrome.storage.local.get({
     enabled: true,
     profile: "auto",
-    detailedLogging: false
+    detailedLogging: false,
+    diagnosticStage: "full"
   });
   const { enabled, profile } = settings;
+  const diagnosticStage = Object.hasOwn(DIAGNOSTIC_STAGE_NAMES, settings.diagnosticStage)
+    ? settings.diagnosticStage
+    : "full";
   detailedLogging = settings.detailedLogging;
   if (!enabled) return;
 
   diagnostic("詳細ログモードで開始", {
     profile,
+    diagnosticStage: DIAGNOSTIC_STAGE_NAMES[diagnosticStage],
     page: `${location.origin}${location.pathname}`,
     webGpuAvailable: Boolean(navigator.gpu)
   });
 
-  const findVideo = () => findYouTubeVideo(profile);
+  const findVideo = () => findYouTubeVideo(profile, diagnosticStage);
   new MutationObserver(findVideo).observe(document.documentElement, {
     childList: true,
     subtree: true
