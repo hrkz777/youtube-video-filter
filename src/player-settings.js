@@ -43,7 +43,7 @@ const PLAYER_SETTINGS_CSS = `
   .${BUTTON_CLASS} svg {
     width: 100%;
     height: 100%;
-    padding: 7px;
+    padding: 12px;
     box-sizing: border-box;
     fill: currentColor;
   }
@@ -261,7 +261,8 @@ function createButton() {
   button.setAttribute("aria-expanded", "false");
   const svgNamespace = "http://www.w3.org/2000/svg";
   const icon = document.createElementNS(svgNamespace, "svg");
-  icon.setAttribute("viewBox", "0 0 24 24");
+  // パスの実座標範囲へ切り詰め、SVG自体が持つ空白を除去する。
+  icon.setAttribute("viewBox", "4 2 17 17");
   icon.setAttribute("aria-hidden", "true");
   const path = document.createElementNS(svgNamespace, "path");
   path.setAttribute("d", "M4 5h10v2H6v10h12v-5h2v7H4V5Zm14-3 .8 2.2L21 5l-2.2.8L18 8l-.8-2.2L15 5l2.2-.8L18 2Zm-5 6 1.1 2.9L17 12l-2.9 1.1L13 16l-1.1-2.9L9 12l2.9-1.1L13 8Z");

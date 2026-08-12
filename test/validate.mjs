@@ -59,7 +59,7 @@ assert.match(contentBundle, /cancelActiveProcessing/);
 assert.match(contentBundle, /ytp-anime4k-button/);
 assert.match(contentBundle, /ytp-right-controls/);
 assert.match(contentBundle, /controls\.firstElementChild/);
-assert.match(contentBundle, /padding:\s*7px/);
+assert.match(contentBundle, /viewBox[^\n]+4 2 17 17/);
 assert.match(contentBundle, /aria-haspopup/);
 assert.match(contentBundle, /aria-expanded/);
 assert.match(popupDocument, /id="detailed-logging"/);
