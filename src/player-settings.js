@@ -43,7 +43,7 @@ const PLAYER_SETTINGS_CSS = `
   .${BUTTON_CLASS} svg {
     width: 100%;
     height: 100%;
-    padding: 11px;
+    padding: 7px;
     box-sizing: border-box;
     fill: currentColor;
   }
