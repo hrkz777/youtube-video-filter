@@ -105,13 +105,6 @@ const PLAYER_SETTINGS_CSS = `
     overflow-y: auto;
     overscroll-behavior: contain;
   }
-  .${PANEL_CLASS} .ytp-menuitem-label small {
-    display: block;
-    margin-top: 2px;
-    color: #aaa;
-    font-size: 11px;
-    line-height: 1.35;
-  }
   .${PANEL_CLASS} .ytp-panel-back-button svg,
   .${PANEL_CLASS} .ytp-menuitem-icon svg {
     width: 24px;
@@ -149,19 +142,14 @@ function createMenuIcon(pathData) {
   return icon;
 }
 
-function createMenuLabel(title, description) {
+function createMenuLabel(title) {
   const label = document.createElement("div");
   label.className = "ytp-menuitem-label";
-  label.append(document.createTextNode(title));
-  if (description) {
-    const note = document.createElement("small");
-    note.textContent = description;
-    label.append(note);
-  }
+  label.textContent = title;
   return label;
 }
 
-function createToggleItem(setting, title, description, iconPath, saveChange) {
+function createToggleItem(setting, title, iconPath, saveChange) {
   const item = document.createElement("div");
   item.className = "ytp-menuitem";
   item.dataset.toggleSetting = setting;
@@ -174,7 +162,7 @@ function createToggleItem(setting, title, description, iconPath, saveChange) {
   const toggle = document.createElement("div");
   toggle.className = "ytp-menuitem-toggle-checkbox";
   content.append(toggle);
-  item.append(createMenuIcon(iconPath), createMenuLabel(title, description), content);
+  item.append(createMenuIcon(iconPath), createMenuLabel(title), content);
   makeInteractive(item, () => {
     const checked = item.getAttribute("aria-checked") !== "true";
     item.setAttribute("aria-checked", String(checked));
@@ -208,7 +196,6 @@ function createPanelHeader(title, showMain) {
   back.setAttribute("role", "button");
   back.setAttribute("aria-label", "戻る");
   back.tabIndex = 0;
-  back.append(createSvg("M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12l6.6-6.6Z"));
   makeInteractive(back, showMain);
   const heading = document.createElement("div");
   heading.className = "ytp-panel-title";
@@ -240,13 +227,18 @@ function createPanel(onChange) {
   const updateLayout = () => {
     const activePanel = pages.get(currentPage);
     if (!activePanel || root.hidden) return;
+    root.style.removeProperty("height");
+    popupContent.style.removeProperty("height");
+    activePanel.style.removeProperty("height");
     const header = activePanel.querySelector(".ytp-panel-header");
     const headerHeight = header ? Math.max(header.offsetHeight, 48) : 0;
     const menu = activePanel.querySelector(".ytp-panel-menu");
-    const itemHeight = menu
-      ? [...menu.children].reduce((total, item) => total + Math.max(item.offsetHeight, 48), 0)
+    menu?.style.removeProperty("height");
+    const visibleItemCount = menu
+      ? [...menu.children].filter((item) => !item.hidden).length
       : 0;
-    const menuHeight = Math.max(menu?.scrollHeight ?? 0, itemHeight);
+    const measuredMenuHeight = menu?.scrollHeight ?? 0;
+    const menuHeight = measuredMenuHeight > 0 ? measuredMenuHeight : visibleItemCount * 48;
     const playerHeight = root.parentElement?.clientHeight || window.innerHeight;
     const maximumHeight = Math.max(48, playerHeight - 72);
     const height = Math.min(Math.max(48, headerHeight + menuHeight), maximumHeight);
@@ -283,7 +275,6 @@ function createPanel(onChange) {
   const anime4kItem = createToggleItem(
     "enabled",
     "Anime4K",
-    "アップスケーリング",
     "M4 5h10v2H6v10h12v-5h2v7H4V5Zm14-3 .8 2.2L21 5l-2.2.8L18 8l-.8-2.2L15 5l2.2-.8L18 2Z",
     saveChange
   );
@@ -291,8 +282,7 @@ function createPanel(onChange) {
   const colorItem = createSubmenuItem("colorRangeMode", "カラーレンジ", "M12 3a9 9 0 1 0 0 18V3Zm0 2v14a7 7 0 0 1 0-14Z", showPage);
   const loggingItem = createToggleItem(
     "detailedLogging",
-    "詳細ログ",
-    "有効にすると動作が重くなる可能性があります",
+    "詳細ログ（動作が重くなる可能性あり）",
     "M11 17h2v-6h-2v6Zm0-8h2V7h-2v2Zm1-6a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 16a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z",
     saveChange
   );
@@ -352,6 +342,7 @@ function createPanel(onChange) {
     }
     for (const setting of Object.keys(SUBMENUS)) root.setSetting(setting, settings[setting]);
     diagnosticItem.hidden = !settings.detailedLogging;
+    updateLayout();
   };
   root.showMain = (focus = true) => showPage("main", focus);
   root.setOpen = (open) => {
