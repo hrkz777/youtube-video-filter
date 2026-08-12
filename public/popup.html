@@ -24,6 +24,14 @@
           <option value="v4.1-low-resolution">v4.1 Low resolution experiment</option>
         </select>
       </label>
+      <label class="setting secondary-setting">
+        <span>
+          <strong>詳細ログ</strong>
+          <small>問題調査用</small>
+        </span>
+        <input id="detailed-logging" type="checkbox" role="switch">
+      </label>
+      <p class="warning">詳細ログを有効にすると継続的にフレーム状態を監視するため、動画再生やブラウザの動作が重くなる可能性があります。</p>
       <p id="status" aria-live="polite"></p>
       <p id="mode-note" class="note">自動では安定性を優先し、Mode Aを使用します。</p>
       <p class="note">設定変更後、YouTubeタブを再読み込みします。WebGPU対応GPUが必要です。</p>

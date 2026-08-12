@@ -48,9 +48,24 @@ select {
   gap: 3px;
 }
 
+.secondary-setting {
+  margin-top: 18px;
+}
+
 small,
 .note {
   color: #a1a1aa;
+}
+
+.warning {
+  margin: 8px 0 0;
+  padding: 8px;
+  border: 1px solid #854d0e;
+  border-radius: 6px;
+  background: #422006;
+  color: #fde68a;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 input {

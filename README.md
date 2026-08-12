@@ -9,6 +9,7 @@ YouTubeの動画へAnime4Kフィルターをリアルタイム適用する、Man
 - Anime4K v4.1 Low resolution experimentの推奨GAN/CNNパイプライン
 - 表示領域に合わせた自動解像度調整（最大4096ピクセル）
 - ポップアップから有効・無効を切り替え可能
+- 問題調査用の詳細ログモード
 - WebGPUが利用できない場合や初期化に失敗した場合は元の映像へ安全にフォールバック
 
 ## 開発版のインストール
@@ -27,6 +28,7 @@ npm run build
 ## 技術上の注意
 
 - Chrome 113以降とWebGPU対応GPUが必要です。
+- 詳細ログモードでは動画・Canvas・WebGPU・フレーム進捗を継続的に監視します。診断処理により動画再生やブラウザの動作が重くなる可能性があるため、通常利用時は無効にしてください。動画URLのクエリ文字列や認証情報は記録しません。
 - YouTubeの動画配信元をWebGPUテクスチャとして利用するため、`*.googlevideo.com` のメディアレスポンスにYouTube向けCORSヘッダーを設定します。それ以外のサイトや通信には適用しません。
 - HDR動画、DRM保護された動画、非常に高い解像度では、ブラウザやGPUの制約により適用できない場合があります。
 - v4.1 Low resolution experimentは360p以下の動画だけで有効になります。公式推奨の `Restore GAN UUL → Upscale GAN x4 UUL → Restore CNN Soft M → Upscale CNN x2 M` を使用するため、通常モードより大幅に高いGPU性能とVRAMが必要です。

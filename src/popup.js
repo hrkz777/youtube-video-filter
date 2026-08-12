@@ -1,5 +1,6 @@
 const enabledInput = document.querySelector("#enabled");
 const profileInput = document.querySelector("#profile");
+const detailedLoggingInput = document.querySelector("#detailed-logging");
 const status = document.querySelector("#status");
 const modeNote = document.querySelector("#mode-note");
 
@@ -10,15 +11,21 @@ const MODE_NOTES = {
 };
 
 async function initialize() {
-  const settings = await chrome.storage.local.get({ enabled: true, profile: "auto" });
+  const settings = await chrome.storage.local.get({
+    enabled: true,
+    profile: "auto",
+    detailedLogging: false
+  });
   enabledInput.checked = settings.enabled;
   profileInput.value = settings.profile;
+  detailedLoggingInput.checked = settings.detailedLogging;
   modeNote.textContent = MODE_NOTES[settings.profile];
 }
 
 async function saveAndReload(changes, message) {
   enabledInput.disabled = true;
   profileInput.disabled = true;
+  detailedLoggingInput.disabled = true;
   await chrome.storage.local.set(changes);
   status.textContent = message;
 
@@ -29,6 +36,7 @@ async function saveAndReload(changes, message) {
 
   enabledInput.disabled = false;
   profileInput.disabled = false;
+  detailedLoggingInput.disabled = false;
 }
 
 enabledInput.addEventListener("change", async () => {
@@ -41,6 +49,13 @@ enabledInput.addEventListener("change", async () => {
 profileInput.addEventListener("change", async () => {
   modeNote.textContent = MODE_NOTES[profileInput.value];
   await saveAndReload({ profile: profileInput.value }, "処理モードを変更しました");
+});
+
+detailedLoggingInput.addEventListener("change", async () => {
+  await saveAndReload(
+    { detailedLogging: detailedLoggingInput.checked },
+    detailedLoggingInput.checked ? "詳細ログを有効にしました" : "詳細ログを無効にしました"
+  );
 });
 
 initialize().catch((error) => {
