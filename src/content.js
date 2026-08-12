@@ -391,7 +391,7 @@ async function applyAnime4K(video, profile, diagnosticStage) {
       video,
       canvas,
       onInputSample: detailedLogging
-        ? (samples) => diagnostic("2D Canvas中継後の入力画素", samples)
+        ? (samples) => diagnostic("2D Canvas中継後の入力画素", JSON.stringify(samples))
         : undefined,
       onRuntimeError: (error) => {
         diagnostic("レンダリングループの実行時エラー", {

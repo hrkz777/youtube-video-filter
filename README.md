@@ -14,7 +14,7 @@ YouTubeの動画へAnime4Kフィルターをリアルタイム適用する、Man
 - ページを再読み込みせず、フィルターと診断パスを即時切り替え
 - 問題調査用の詳細ログモード
 - WebGPUが利用できない場合や初期化に失敗した場合は元の映像へ安全にフォールバック
-- YouTube動画の入力にはChrome/ANGLEとの互換性を優先し、2D OffscreenCanvasを中継して `rgba8unorm` テクスチャへ転送
+- YouTube動画の入力にはChrome/ANGLEとの互換性を優先し、2D OffscreenCanvasとImageBitmapを中継して `rgba8unorm` テクスチャへ転送
 
 ## 開発版のインストール
 
@@ -32,7 +32,7 @@ npm run build
 ## 技術上の注意
 
 - Chrome 113以降とWebGPU対応GPUが必要です。
-- 動画からWebGPUへ直接コピーすると一部のChrome/ANGLE環境で黒画面になるため、互換性を優先して2D CanvasによるRGBA変換を行います。この追加コピーはCPU・GPU負荷を増やす可能性があります。
+- 動画からWebGPUへ直接コピーすると一部のChrome/ANGLE環境で黒画面になるため、互換性を優先して2D CanvasによるRGBA変換とImageBitmapによるフレーム確定を行います。この追加コピーはCPU・GPU負荷を増やす可能性があります。
 - 詳細ログモードでは動画・Canvas・WebGPU・フレーム進捗を継続的に監視します。診断処理により動画再生やブラウザの動作が重くなる可能性があるため、通常利用時は無効にしてください。動画URLのクエリ文字列や認証情報は記録しません。
 - 詳細ログモードでは、黒画面の発生箇所を調べるために「入力映像のみ」「ClampHighlightsまで」「Restore CNN VLまで」「通常の全処理」の診断パスを選択できます。詳細ログを無効にすると通常の全処理へ自動的に戻ります。
 - YouTubeの動画配信元をWebGPUテクスチャとして利用するため、`*.googlevideo.com` のメディアレスポンスにYouTube向けCORSヘッダーを設定します。それ以外のサイトや通信には適用しません。

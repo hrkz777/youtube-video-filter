@@ -190,11 +190,16 @@ export async function render({
         }));
         onInputSample(samples);
       }
-      device.queue.copyExternalImageToTexture(
-        { source: bridgeCanvas },
-        { texture: inputTexture, colorSpace: "srgb" },
-        [video.videoWidth, video.videoHeight]
-      );
+      const frameBitmap = bridgeCanvas.transferToImageBitmap();
+      try {
+        device.queue.copyExternalImageToTexture(
+          { source: frameBitmap },
+          { texture: inputTexture, colorSpace: "srgb" },
+          [video.videoWidth, video.videoHeight]
+        );
+      } finally {
+        frameBitmap.close();
+      }
 
       const encoder = device.createCommandEncoder();
       for (const pipeline of pipelines) pipeline.pass(encoder);
@@ -235,7 +240,7 @@ export async function render({
   return {
     device,
     inputFormat: "rgba8unorm",
-    inputTransfer: "2d-canvas-bridge",
+    inputTransfer: "2d-canvas-to-image-bitmap",
     stop() {
       stopped = true;
       if (frameRequestId !== undefined) video.cancelVideoFrameCallback(frameRequestId);
