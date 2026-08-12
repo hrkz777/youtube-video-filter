@@ -34,6 +34,8 @@ assert.match(contentBundle, /detailedLogging/);
 assert.match(contentBundle, /uncapturederror/);
 assert.match(contentBundle, /device\.lost/);
 assert.match(contentBundle, /onSubmittedWorkDone/);
+assert.match(contentBundle, /YouTube video input \(rgba8unorm\)/);
+assert.match(contentBundle, /copyExternalImageToTexture/);
 assert.match(popupDocument, /id="detailed-logging"/);
 assert.match(popupDocument, /動作が重くなる可能性があります/);
 assert.match(popupDocument, /id="diagnostic-stage"/);

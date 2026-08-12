@@ -6,9 +6,9 @@ import {
   GANUUL,
   GANx4UUL,
   ModeA,
-  Original,
-  render
+  Original
 } from "anime4k-webgpu";
+import { render } from "./renderer.js";
 
 const CANVAS_CLASS = "anime4k-for-youtube-canvas";
 const VIDEO_CLASS = "anime4k-for-youtube-source";
@@ -252,6 +252,7 @@ async function applyAnime4K(video, profile, diagnosticStage) {
   initializationInProgress = true;
   let canvas;
   let renderingDevice;
+  let rendererController;
   let validationScopeActive = false;
   let failed = false;
   const originalOpacity = video.style.opacity;
@@ -260,6 +261,7 @@ async function applyAnime4K(video, profile, diagnosticStage) {
     if (failed) return;
     failed = true;
     failedSources.set(video, video.currentSrc);
+    rendererController?.stop();
     canvas?.remove();
     video.style.opacity = originalOpacity;
     video.classList.remove(VIDEO_CLASS);
@@ -284,9 +286,16 @@ async function applyAnime4K(video, profile, diagnosticStage) {
 
     canvas = createCanvas(video);
 
-    await render({
+    rendererController = await render({
       video,
       canvas,
+      onRuntimeError: (error) => {
+        diagnostic("レンダリングループの実行時エラー", {
+          name: error?.constructor?.name,
+          message: error?.message
+        });
+        restoreOriginalVideo("動画フレームのWebGPU処理に失敗しました", error);
+      },
       pipelineBuilder: (device, inputTexture) => {
         renderingDevice = device;
         diagnostic("WebGPUデバイスを取得", getDeviceDetails(device));
@@ -314,6 +323,7 @@ async function applyAnime4K(video, profile, diagnosticStage) {
           profile,
           diagnosticStage: DIAGNOSTIC_STAGE_NAMES[diagnosticStage],
           pipelineCount: pipelines.length,
+          inputTextureFormat: "rgba8unorm",
           inputSize: `${video.videoWidth}x${video.videoHeight}`,
           outputSize: `${canvas.width}x${canvas.height}`
         });
@@ -321,6 +331,10 @@ async function applyAnime4K(video, profile, diagnosticStage) {
       }
     });
 
+    if (failed) {
+      rendererController.stop();
+      return;
+    }
     diagnostic("レンダリングループを登録");
     if (!renderingDevice) throw new Error("WebGPUデバイスを取得できませんでした");
 
