@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Anime4K for YouTube</title>
+    <title>YouTube Filter</title>
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
     <main>
-      <h1>Anime4K for YouTube</h1>
+      <h1>YouTube Filter</h1>
       <label class="setting">
         <span>
           <strong>Anime4K</strong>
@@ -27,6 +27,14 @@
           <option value="mode-bb">v4.x Mode B+B</option>
           <option value="mode-ac">v4.x Mode A+C（カスタム）</option>
           <option value="v4.1-low-resolution">v4.1 Low resolution experiment</option>
+        </select>
+      </label>
+      <label class="profile">
+        <span>カラーレンジ変換</span>
+        <select id="color-range-mode">
+          <option value="none">変換なし</option>
+          <option value="limited-to-full">リミテッド → フル</option>
+          <option value="full-to-limited">フル → リミテッド</option>
         </select>
       </label>
       <label class="setting secondary-setting">

@@ -8,6 +8,8 @@ const popupDocument = await readFile("dist/popup.html", "utf8");
 const popupBundle = await readFile("dist/popup.js", "utf8");
 
 assert.equal(manifest.manifest_version, 3);
+assert.equal(manifest.name, "YouTube Filter");
+assert.equal(manifest.version, "0.2.0");
 assert.deepEqual(manifest.content_scripts[0].matches, ["https://www.youtube.com/*"]);
 assert.deepEqual(manifest.host_permissions, [
   "https://www.youtube.com/*",
@@ -56,12 +58,19 @@ assert.match(contentBundle, /ResizeObserver/);
 assert.match(contentBundle, /videoBounds\.height/);
 assert.match(contentBundle, /chrome\.storage\.onChanged/);
 assert.match(contentBundle, /cancelActiveProcessing/);
-assert.match(contentBundle, /ytp-anime4k-button/);
+assert.match(contentBundle, /ytp-youtube-filter-button/);
 assert.match(contentBundle, /ytp-right-controls/);
 assert.match(contentBundle, /controls\.firstElementChild/);
 assert.match(contentBundle, /viewBox[^\n]+4 2 17 17/);
 assert.match(contentBundle, /aria-haspopup/);
 assert.match(contentBundle, /aria-expanded/);
+assert.match(contentBundle, /limited-to-full/);
+assert.match(contentBundle, /full-to-limited/);
+assert.match(contentBundle, /255\.0\s*\/\s*219\.0/);
+assert.match(contentBundle, /219\.0\s*\/\s*255\.0/);
+assert.match(popupDocument, /id="color-range-mode"/);
+assert.match(popupDocument, /リミテッド → フル/);
+assert.match(popupDocument, /フル → リミテッド/);
 assert.match(popupDocument, /id="detailed-logging"/);
 assert.match(popupDocument, /動作が重くなる可能性があります/);
 assert.match(popupDocument, /id="diagnostic-stage"/);
@@ -77,4 +86,4 @@ assert.equal(contentBundle.includes("eval("), false);
 assert.ok((await stat("dist/content.js")).size < 5 * 1024 * 1024);
 await access("dist/THIRD_PARTY_NOTICES.md");
 
-console.log("配布物のManifest、権限、Anime4Kパイプライン、ライセンス通知を検証しました。");
+console.log("配布物のManifest、権限、映像フィルター、ライセンス通知を検証しました。");

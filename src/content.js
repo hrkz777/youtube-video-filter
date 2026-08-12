@@ -15,8 +15,8 @@ import {
 import { render } from "./renderer.js";
 import { createPlayerSettingsUi } from "./player-settings.js";
 
-const CANVAS_CLASS = "anime4k-for-youtube-canvas";
-const VIDEO_CLASS = "anime4k-for-youtube-source";
+const CANVAS_CLASS = "youtube-filter-canvas";
+const VIDEO_CLASS = "youtube-filter-source";
 let activeVideo = null;
 let initializationInProgress = false;
 let detailedLogging = false;
@@ -25,6 +25,7 @@ let playerSettingsUi = null;
 let currentSettings = {
   enabled: true,
   profile: "auto",
+  colorRangeMode: "none",
   detailedLogging: false,
   diagnosticStage: "full"
 };
@@ -46,6 +47,12 @@ const VALID_PROFILES = new Set([
   "mode-ac",
   "v4.1-low-resolution"
 ]);
+const VALID_COLOR_RANGE_MODES = new Set(["none", "limited-to-full", "full-to-limited"]);
+const COLOR_RANGE_NAMES = {
+  none: "変換なし",
+  "limited-to-full": "リミテッド → フル",
+  "full-to-limited": "フル → リミテッド"
+};
 const PROFILE_NAMES = {
   auto: "Mode A（自動）",
   "mode-a": "Mode A",
@@ -61,6 +68,9 @@ function normalizeSettings(settings) {
   return {
     enabled: typeof settings.enabled === "boolean" ? settings.enabled : true,
     profile: VALID_PROFILES.has(settings.profile) ? settings.profile : "auto",
+    colorRangeMode: VALID_COLOR_RANGE_MODES.has(settings.colorRangeMode)
+      ? settings.colorRangeMode
+      : "none",
     detailedLogging: settings.detailedLogging === true,
     diagnosticStage: Object.hasOwn(DIAGNOSTIC_STAGE_NAMES, settings.diagnosticStage)
       ? settings.diagnosticStage
@@ -70,12 +80,12 @@ function normalizeSettings(settings) {
 
 function report(message, error) {
   const method = error ? "error" : "info";
-  console[method](`[Anime4K for YouTube] ${message}`, error ?? "");
+  console[method](`[YouTube Filter] ${message}`, error ?? "");
 }
 
 function diagnostic(message, details) {
   if (!detailedLogging) return;
-  console.info(`[Anime4K for YouTube][詳細] ${message}`, details ?? "");
+  console.info(`[YouTube Filter][詳細] ${message}`, details ?? "");
 }
 
 function getSafeSourceDescription(video) {
@@ -359,7 +369,7 @@ function buildDiagnosticPipeline(stage, device, inputTexture) {
   return [clampHighlights, restore];
 }
 
-async function applyAnime4K(video, profile, diagnosticStage) {
+async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosticStage }) {
   if (initializationInProgress || activeVideo === video || !navigator.gpu) {
     if (!navigator.gpu) report("WebGPUが利用できないため、元の映像を表示します");
     return;
@@ -403,7 +413,9 @@ async function applyAnime4K(video, profile, diagnosticStage) {
 
   try {
     diagnostic("初期化を開始", {
+      anime4kEnabled: enabled,
       profile,
+      colorRangeMode,
       diagnosticStage: DIAGNOSTIC_STAGE_NAMES[diagnosticStage],
       video: getVideoState(video)
     });
@@ -412,7 +424,7 @@ async function applyAnime4K(video, profile, diagnosticStage) {
     if (cancelled) return;
     diagnostic("動画メタデータを取得", getVideoState(video));
 
-    if (diagnosticStage === "full" && profile === "v4.1-low-resolution" && video.videoHeight > 360) {
+    if (enabled && diagnosticStage === "full" && profile === "v4.1-low-resolution" && video.videoHeight > 360) {
       report(`v4.1低解像度モードは360p以下専用です（現在: ${video.videoHeight}p）。元の映像を表示します`);
       return;
     }
@@ -422,6 +434,7 @@ async function applyAnime4K(video, profile, diagnosticStage) {
     rendererController = await render({
       video,
       canvas,
+      colorRangeMode,
       onInputSample: detailedLogging
         ? (samples) => diagnostic("2D Canvas中継後の入力画素", JSON.stringify(samples))
         : undefined,
@@ -456,13 +469,17 @@ async function applyAnime4K(video, profile, diagnosticStage) {
 
         device.pushErrorScope("validation");
         validationScopeActive = true;
-        const pipelines = diagnosticStage !== "full"
-          ? buildDiagnosticPipeline(diagnosticStage, device, inputTexture)
-          : profile === "v4.1-low-resolution"
-            ? buildLowResolutionExperiment(device, inputTexture)
-            : buildPreset(profile, device, inputTexture, video, canvas);
+        const pipelines = !enabled
+          ? [new Original({ inputTexture })]
+          : diagnosticStage !== "full"
+            ? buildDiagnosticPipeline(diagnosticStage, device, inputTexture)
+            : profile === "v4.1-low-resolution"
+              ? buildLowResolutionExperiment(device, inputTexture)
+              : buildPreset(profile, device, inputTexture, video, canvas);
         diagnostic("パイプラインを構築", {
+          anime4kEnabled: enabled,
           profile,
+          colorRangeMode,
           diagnosticStage: DIAGNOSTIC_STAGE_NAMES[diagnosticStage],
           pipelineCount: pipelines.length,
           inputTextureFormat: "rgba8unorm",
@@ -539,32 +556,37 @@ async function applyAnime4K(video, profile, diagnosticStage) {
       });
     }
     startFrameDiagnostics(video, canvas);
-    const appliedMode = diagnosticStage !== "full"
-      ? `診断パス ${DIAGNOSTIC_STAGE_NAMES[diagnosticStage]}`
-      : PROFILE_NAMES[profile];
-    report(`Anime4K ${appliedMode}の最初のGPU処理が完了しました (${video.videoWidth}x${video.videoHeight} → ${canvas.width}x${canvas.height})`);
+    const appliedFilters = [];
+    if (enabled) {
+      const appliedMode = diagnosticStage !== "full"
+        ? `診断パス ${DIAGNOSTIC_STAGE_NAMES[diagnosticStage]}`
+        : PROFILE_NAMES[profile];
+      appliedFilters.push(`Anime4K ${appliedMode}`);
+    }
+    if (colorRangeMode !== "none") appliedFilters.push(`色レンジ ${COLOR_RANGE_NAMES[colorRangeMode]}`);
+    report(`${appliedFilters.join(" / ")}の最初のGPU処理が完了しました (${video.videoWidth}x${video.videoHeight} → ${canvas.width}x${canvas.height})`);
   } catch (error) {
     if (validationScopeActive && renderingDevice) {
       renderingDevice.popErrorScope().catch(() => {});
     }
-    restoreOriginalVideo("Anime4Kの初期化または最初のフレーム処理に失敗しました", error);
+    restoreOriginalVideo("フィルターの初期化または最初のフレーム処理に失敗しました", error);
   } finally {
     initializationInProgress = false;
     if (cancelled && cancelActiveProcessing === cancelProcessing) {
       cancelActiveProcessing = null;
     }
-    if (currentSettings.enabled && !activeVideo) {
+    if ((currentSettings.enabled || currentSettings.colorRangeMode !== "none") && !activeVideo) {
       queueMicrotask(findYouTubeVideo);
     }
   }
 }
 
 function findYouTubeVideo() {
-  if (!currentSettings.enabled) return;
+  if (!currentSettings.enabled && currentSettings.colorRangeMode === "none") return;
   const video = document.querySelector("#movie_player video.html5-main-video");
   const sourcePreviouslyFailed = video && failedSources.get(video) === video.currentSrc;
   if (video && video !== activeVideo && !sourcePreviouslyFailed) {
-    applyAnime4K(video, currentSettings.profile, currentSettings.diagnosticStage);
+    applyFilters(video, currentSettings);
   }
 }
 
@@ -591,6 +613,7 @@ async function start() {
   const settings = await chrome.storage.local.get({
     enabled: true,
     profile: "auto",
+    colorRangeMode: "none",
     detailedLogging: false,
     diagnosticStage: "full"
   });
@@ -603,6 +626,7 @@ async function start() {
 
   diagnostic("詳細ログモードで開始", {
     profile: currentSettings.profile,
+    colorRangeMode: currentSettings.colorRangeMode,
     diagnosticStage: DIAGNOSTIC_STAGE_NAMES[currentSettings.diagnosticStage],
     page: `${location.origin}${location.pathname}`,
     webGpuAvailable: Boolean(navigator.gpu)
@@ -620,7 +644,7 @@ async function start() {
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
     const relevantChanges = {};
-    for (const key of ["enabled", "profile", "detailedLogging", "diagnosticStage"]) {
+    for (const key of ["enabled", "profile", "colorRangeMode", "detailedLogging", "diagnosticStage"]) {
       if (changes[key]) relevantChanges[key] = changes[key].newValue;
     }
     if (Object.keys(relevantChanges).length > 0) applySettings(relevantChanges);
