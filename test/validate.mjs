@@ -14,6 +14,7 @@ assert.deepEqual(manifest.host_permissions, [
   "https://*.googlevideo.com/*"
 ]);
 assert.equal(manifest.host_permissions.includes("<all_urls>"), false);
+assert.equal(manifest.permissions.includes("activeTab"), false);
 assert.equal(rules[0].condition.urlFilter, "||googlevideo.com/");
 assert.deepEqual(rules[0].condition.resourceTypes, ["media"]);
 
@@ -36,6 +37,8 @@ assert.match(contentBundle, /device\.lost/);
 assert.match(contentBundle, /onSubmittedWorkDone/);
 assert.match(contentBundle, /YouTube video input \(rgba8unorm\)/);
 assert.match(contentBundle, /copyExternalImageToTexture/);
+assert.match(contentBundle, /chrome\.storage\.onChanged/);
+assert.match(contentBundle, /cancelActiveProcessing/);
 assert.match(popupDocument, /id="detailed-logging"/);
 assert.match(popupDocument, /動作が重くなる可能性があります/);
 assert.match(popupDocument, /id="diagnostic-stage"/);

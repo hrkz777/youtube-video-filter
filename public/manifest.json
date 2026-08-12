@@ -10,7 +10,6 @@
   },
   "permissions": [
     "storage",
-    "activeTab",
     "declarativeNetRequestWithHostAccess"
   ],
   "host_permissions": [

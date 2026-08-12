@@ -15,6 +15,13 @@ const VIDEO_CLASS = "anime4k-for-youtube-source";
 let activeVideo = null;
 let initializationInProgress = false;
 let detailedLogging = false;
+let cancelActiveProcessing = null;
+let currentSettings = {
+  enabled: true,
+  profile: "auto",
+  detailedLogging: false,
+  diagnosticStage: "full"
+};
 const failedSources = new WeakMap();
 
 const DIAGNOSTIC_STAGE_NAMES = {
@@ -23,6 +30,18 @@ const DIAGNOSTIC_STAGE_NAMES = {
   clamp: "B: ClampHighlightsまで",
   restore: "C: Restore CNN VLまで"
 };
+const VALID_PROFILES = new Set(["auto", "mode-a", "v4.1-low-resolution"]);
+
+function normalizeSettings(settings) {
+  return {
+    enabled: typeof settings.enabled === "boolean" ? settings.enabled : true,
+    profile: VALID_PROFILES.has(settings.profile) ? settings.profile : "auto",
+    detailedLogging: settings.detailedLogging === true,
+    diagnosticStage: Object.hasOwn(DIAGNOSTIC_STAGE_NAMES, settings.diagnosticStage)
+      ? settings.diagnosticStage
+      : "full"
+  };
+}
 
 function report(message, error) {
   const method = error ? "error" : "info";
@@ -255,7 +274,20 @@ async function applyAnime4K(video, profile, diagnosticStage) {
   let rendererController;
   let validationScopeActive = false;
   let failed = false;
+  let cancelled = false;
   const originalOpacity = video.style.opacity;
+
+  const cancelProcessing = () => {
+    if (cancelled) return;
+    cancelled = true;
+    rendererController?.stop();
+    canvas?.remove();
+    video.style.opacity = originalOpacity;
+    video.classList.remove(VIDEO_CLASS);
+    if (activeVideo === video) activeVideo = null;
+    diagnostic("現在のフィルター処理を停止");
+  };
+  cancelActiveProcessing = cancelProcessing;
 
   const restoreOriginalVideo = (reason, error) => {
     if (failed) return;
@@ -277,6 +309,7 @@ async function applyAnime4K(video, profile, diagnosticStage) {
     });
     video.crossOrigin = "anonymous";
     await waitForVideoMetadata(video);
+    if (cancelled) return;
     diagnostic("動画メタデータを取得", getVideoState(video));
 
     if (diagnosticStage === "full" && profile === "v4.1-low-resolution" && video.videoHeight > 360) {
@@ -331,6 +364,10 @@ async function applyAnime4K(video, profile, diagnosticStage) {
       }
     });
 
+    if (cancelled) {
+      rendererController.stop();
+      return;
+    }
     if (failed) {
       rendererController.stop();
       return;
@@ -346,10 +383,10 @@ async function applyAnime4K(video, profile, diagnosticStage) {
     }
 
     const firstFrame = await waitForNextVideoFrame(video);
-    if (failed) return;
+    if (failed || cancelled) return;
     diagnostic("最初の動画フレームを確認", firstFrame);
     await waitForGpu(renderingDevice);
-    if (failed) return;
+    if (failed || cancelled) return;
     diagnostic("最初のGPU処理完了を確認");
 
     activeVideo = video;
@@ -369,15 +406,40 @@ async function applyAnime4K(video, profile, diagnosticStage) {
     restoreOriginalVideo("Anime4Kの初期化または最初のフレーム処理に失敗しました", error);
   } finally {
     initializationInProgress = false;
+    if (cancelled && cancelActiveProcessing === cancelProcessing) {
+      cancelActiveProcessing = null;
+    }
+    if (currentSettings.enabled && !activeVideo) {
+      queueMicrotask(findYouTubeVideo);
+    }
   }
 }
 
-function findYouTubeVideo(profile, diagnosticStage) {
+function findYouTubeVideo() {
+  if (!currentSettings.enabled) return;
   const video = document.querySelector("#movie_player video.html5-main-video");
   const sourcePreviouslyFailed = video && failedSources.get(video) === video.currentSrc;
   if (video && video !== activeVideo && !sourcePreviouslyFailed) {
-    applyAnime4K(video, profile, diagnosticStage);
+    applyAnime4K(video, currentSettings.profile, currentSettings.diagnosticStage);
   }
+}
+
+function applySettings(changes) {
+  const previousSettings = currentSettings;
+  currentSettings = normalizeSettings({ ...currentSettings, ...changes });
+  detailedLogging = currentSettings.detailedLogging;
+
+  diagnostic("設定変更を検出", {
+    previous: previousSettings,
+    current: currentSettings
+  });
+
+  const video = document.querySelector("#movie_player video.html5-main-video");
+  cancelActiveProcessing?.();
+  cancelActiveProcessing = null;
+  activeVideo = null;
+  if (video) failedSources.delete(video);
+  findYouTubeVideo();
 }
 
 async function start() {
@@ -387,27 +449,30 @@ async function start() {
     detailedLogging: false,
     diagnosticStage: "full"
   });
-  const { enabled, profile } = settings;
-  const diagnosticStage = Object.hasOwn(DIAGNOSTIC_STAGE_NAMES, settings.diagnosticStage)
-    ? settings.diagnosticStage
-    : "full";
-  detailedLogging = settings.detailedLogging;
-  if (!enabled) return;
+  currentSettings = normalizeSettings(settings);
+  detailedLogging = currentSettings.detailedLogging;
 
   diagnostic("詳細ログモードで開始", {
-    profile,
-    diagnosticStage: DIAGNOSTIC_STAGE_NAMES[diagnosticStage],
+    profile: currentSettings.profile,
+    diagnosticStage: DIAGNOSTIC_STAGE_NAMES[currentSettings.diagnosticStage],
     page: `${location.origin}${location.pathname}`,
     webGpuAvailable: Boolean(navigator.gpu)
   });
 
-  const findVideo = () => findYouTubeVideo(profile, diagnosticStage);
-  new MutationObserver(findVideo).observe(document.documentElement, {
+  new MutationObserver(findYouTubeVideo).observe(document.documentElement, {
     childList: true,
     subtree: true
   });
-  window.addEventListener("yt-navigate-finish", findVideo);
-  findVideo();
+  window.addEventListener("yt-navigate-finish", findYouTubeVideo);
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local") return;
+    const relevantChanges = {};
+    for (const key of ["enabled", "profile", "detailedLogging", "diagnosticStage"]) {
+      if (changes[key]) relevantChanges[key] = changes[key].newValue;
+    }
+    if (Object.keys(relevantChanges).length > 0) applySettings(relevantChanges);
+  });
+  findYouTubeVideo();
 }
 
 start().catch((error) => report("拡張機能を開始できませんでした", error));
