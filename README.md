@@ -1,4 +1,4 @@
-# YouTube Filter
+# YouTube Video Filter
 
 YouTubeの動画へAnime4Kアップスケーリングとカラーレンジ変換をリアルタイム適用する、Manifest V3対応のChrome拡張機能です。処理は端末上のWebGPUで完結し、動画フレームを外部へ送信しません。
 

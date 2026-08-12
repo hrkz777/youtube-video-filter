@@ -226,10 +226,10 @@ function createPanel(onChange) {
   panel.className = PANEL_CLASS;
   panel.hidden = true;
   panel.setAttribute("role", "dialog");
-  panel.setAttribute("aria-label", "YouTube Filter設定");
+  panel.setAttribute("aria-label", "YouTube Video Filter設定");
   const header = document.createElement("header");
   header.className = `${PANEL_CLASS}__header`;
-  header.append(document.createTextNode("YouTube Filter"));
+  header.append(document.createTextNode("YouTube Video Filter"));
   const badge = document.createElement("span");
   badge.className = `${PANEL_CLASS}__badge`;
   badge.textContent = "WebGPU";
@@ -251,7 +251,7 @@ function createPanel(onChange) {
     const changes = { [input.dataset.setting]: value };
     if (input.dataset.setting === "detailedLogging" && !value) changes.diagnosticStage = "full";
     Promise.resolve(onChange(changes)).catch((error) => {
-      console.error("[YouTube Filter] プレイヤー内設定を保存できませんでした", error);
+      console.error("[YouTube Video Filter] プレイヤー内設定を保存できませんでした", error);
     });
   });
   panel.addEventListener("pointerdown", (event) => event.stopPropagation());
@@ -262,8 +262,8 @@ function createButton() {
   const button = document.createElement("button");
   button.className = `ytp-button ${BUTTON_CLASS}`;
   button.type = "button";
-  button.title = "YouTube Filter設定";
-  button.setAttribute("aria-label", "YouTube Filter設定");
+  button.title = "YouTube Video Filter設定";
+  button.setAttribute("aria-label", "YouTube Video Filter設定");
   button.setAttribute("aria-haspopup", "dialog");
   button.setAttribute("aria-expanded", "false");
   const svgNamespace = "http://www.w3.org/2000/svg";
@@ -297,7 +297,7 @@ export function createPlayerSettingsUi({ getSettings, onChange }) {
     const settings = getSettings();
     const filterEnabled = settings.enabled || settings.colorRangeMode !== "none";
     button.classList.toggle("is-enabled", filterEnabled);
-    button.title = filterEnabled ? "YouTube Filter設定（有効）" : "YouTube Filter設定（無効）";
+    button.title = filterEnabled ? "YouTube Video Filter設定（有効）" : "YouTube Video Filter設定（無効）";
     for (const input of panel.querySelectorAll("[data-setting]")) {
       const value = settings[input.dataset.setting];
       if (input.type === "checkbox") input.checked = Boolean(value);

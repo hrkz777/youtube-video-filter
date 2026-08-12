@@ -146,7 +146,7 @@ export async function render({
     primitive: { topology: "triangle-list" }
   });
   const displaySettingsBuffer = device.createBuffer({
-    label: "YouTube Filter display settings",
+    label: "YouTube Video Filter display settings",
     size: 4,
     usage: GPUBufferUsage.UNIFORM,
     mappedAtCreation: true

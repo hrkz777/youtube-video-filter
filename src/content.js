@@ -80,12 +80,12 @@ function normalizeSettings(settings) {
 
 function report(message, error) {
   const method = error ? "error" : "info";
-  console[method](`[YouTube Filter] ${message}`, error ?? "");
+  console[method](`[YouTube Video Filter] ${message}`, error ?? "");
 }
 
 function diagnostic(message, details) {
   if (!detailedLogging) return;
-  console.info(`[YouTube Filter][詳細] ${message}`, details ?? "");
+  console.info(`[YouTube Video Filter][詳細] ${message}`, details ?? "");
 }
 
 function getSafeSourceDescription(video) {

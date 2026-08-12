@@ -1,5 +1,5 @@
 {
-  "name": "youtube-filter",
+  "name": "youtube-video-filter",
   "version": "0.2.0",
   "private": true,
   "description": "YouTube専用のAnime4Kアップスケーラー兼カラーレンジ変換フィルター",

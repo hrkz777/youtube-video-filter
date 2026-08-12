@@ -8,7 +8,7 @@ const popupDocument = await readFile("dist/popup.html", "utf8");
 const popupBundle = await readFile("dist/popup.js", "utf8");
 
 assert.equal(manifest.manifest_version, 3);
-assert.equal(manifest.name, "YouTube Filter");
+assert.equal(manifest.name, "YouTube Video Filter");
 assert.equal(manifest.version, "0.2.0");
 assert.deepEqual(manifest.content_scripts[0].matches, ["https://www.youtube.com/*"]);
 assert.deepEqual(manifest.host_permissions, [
