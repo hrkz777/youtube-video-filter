@@ -1,6 +1,7 @@
 const BUTTON_CLASS = "ytp-youtube-filter-button";
 const PANEL_CLASS = "ytp-youtube-filter-settings";
 const STYLE_ID = "youtube-filter-player-settings-style";
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
 const PROFILES = [
   ["auto", "自動（推奨）"],
@@ -13,6 +14,12 @@ const PROFILES = [
   ["v4.1-low-resolution", "v4.1 Low resolution"]
 ];
 
+const COLOR_RANGE_MODES = [
+  ["none", "変換なし"],
+  ["limited-to-full", "リミテッド → フル"],
+  ["full-to-limited", "フル → リミテッド"]
+];
+
 const DIAGNOSTIC_STAGES = [
   ["full", "D: 通常の全処理"],
   ["source", "A: 入力映像のみ"],
@@ -20,11 +27,11 @@ const DIAGNOSTIC_STAGES = [
   ["restore", "C: Restore CNN VLまで"]
 ];
 
-const COLOR_RANGE_MODES = [
-  ["none", "変換なし"],
-  ["limited-to-full", "リミテッド → フル"],
-  ["full-to-limited", "フル → リミテッド"]
-];
+const SUBMENUS = {
+  profile: { title: "処理モード", options: PROFILES },
+  colorRangeMode: { title: "カラーレンジ", options: COLOR_RANGE_MODES },
+  diagnosticStage: { title: "診断パス", options: DIAGNOSTIC_STAGES }
+};
 
 const PLAYER_SETTINGS_CSS = `
   .${BUTTON_CLASS} {
@@ -58,9 +65,9 @@ const PLAYER_SETTINGS_CSS = `
     right: 12px;
     bottom: 54px;
     z-index: 75;
-    width: min(340px, calc(100% - 24px));
+    width: min(320px, calc(100% - 24px));
     max-height: calc(100% - 72px);
-    overflow: auto;
+    overflow: hidden;
     border-radius: 12px;
     background: rgba(28, 28, 28, .98);
     box-shadow: 0 4px 24px rgba(0, 0, 0, .55);
@@ -70,61 +77,125 @@ const PLAYER_SETTINGS_CSS = `
     line-height: 1.4;
     text-align: left;
   }
-  .${PANEL_CLASS}[hidden] {
+  .${PANEL_CLASS}[hidden],
+  .${PANEL_CLASS}__page[hidden],
+  .${PANEL_CLASS}__item[hidden] {
     display: none !important;
   }
   .${PANEL_CLASS} * {
     box-sizing: border-box;
   }
+  .${PANEL_CLASS}__page {
+    max-height: calc(100vh - 120px);
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
   .${PANEL_CLASS}__header {
-    display: flex;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
     align-items: center;
-    justify-content: space-between;
     min-height: 48px;
-    padding: 10px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, .12);
+    border-bottom: 1px solid rgba(255, 255, 255, .1);
+  }
+  .${PANEL_CLASS}__header--main {
+    grid-template-columns: 1fr;
+    padding: 0 16px;
+  }
+  .${PANEL_CLASS}__title {
+    overflow: hidden;
     font-size: 14px;
     font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .${PANEL_CLASS}__badge {
-    color: #aaa;
-    font-size: 11px;
-    font-weight: 400;
+  .${PANEL_CLASS}__back {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    padding: 8px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    place-items: center;
   }
-  .${PANEL_CLASS}__row {
-    display: flex;
+  .${PANEL_CLASS}__back:hover,
+  .${PANEL_CLASS}__back:focus-visible {
+    background: rgba(255, 255, 255, .1);
+    outline: none;
+  }
+  .${PANEL_CLASS}__back svg,
+  .${PANEL_CLASS}__icon svg,
+  .${PANEL_CLASS}__chevron svg,
+  .${PANEL_CLASS}__check svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+  }
+  .${PANEL_CLASS}__menu {
+    padding: 8px 0;
+  }
+  .${PANEL_CLASS}__item {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
+    width: 100%;
     min-height: 48px;
-    padding: 8px 16px;
+    padding: 6px 12px;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    text-align: left;
+  }
+  button.${PANEL_CLASS}__item,
+  label.${PANEL_CLASS}__item {
+    cursor: pointer;
+  }
+  .${PANEL_CLASS}__item:hover,
+  .${PANEL_CLASS}__item:focus-within,
+  button.${PANEL_CLASS}__item:focus-visible {
+    background: rgba(255, 255, 255, .1);
+  }
+  .${PANEL_CLASS}__icon,
+  .${PANEL_CLASS}__check {
+    display: grid;
+    color: #fff;
+    place-items: center;
   }
   .${PANEL_CLASS}__label {
     min-width: 0;
+    padding-right: 12px;
   }
   .${PANEL_CLASS}__label small {
     display: block;
     margin-top: 2px;
     color: #aaa;
     font-size: 11px;
+    line-height: 1.35;
   }
-  .${PANEL_CLASS} select {
-    width: 164px;
-    min-width: 0;
-    padding: 7px 28px 7px 9px;
-    border: 1px solid rgba(255, 255, 255, .18);
-    border-radius: 4px;
-    outline: none;
-    background: #3f3f3f;
-    color: #fff;
-    font: inherit;
+  .${PANEL_CLASS}__value {
+    display: flex;
+    align-items: center;
+    max-width: 150px;
+    color: #ddd;
+    gap: 4px;
   }
-  .${PANEL_CLASS} select:focus-visible {
-    border-color: #fff;
+  .${PANEL_CLASS}__value-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .${PANEL_CLASS}__chevron {
+    display: grid;
+    flex: 0 0 auto;
+    transform: scale(.75);
+    place-items: center;
   }
   .${PANEL_CLASS}__switch {
     position: relative;
-    flex: 0 0 auto;
     width: 36px;
     height: 20px;
   }
@@ -141,7 +212,6 @@ const PLAYER_SETTINGS_CSS = `
     margin-top: 3px;
     border-radius: 7px;
     background: #717171;
-    cursor: pointer;
   }
   .${PANEL_CLASS}__track::after {
     display: block;
@@ -165,28 +235,59 @@ const PLAYER_SETTINGS_CSS = `
     outline: 2px solid #fff;
     outline-offset: 2px;
   }
-  .${PANEL_CLASS}__warning {
-    margin: 4px 12px 12px;
-    padding: 8px 10px;
-    border-radius: 6px;
-    background: rgba(255, 183, 0, .13);
-    color: #f5d77c;
-    font-size: 11px;
+  .${PANEL_CLASS}__option {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+  .${PANEL_CLASS}__option[aria-checked="false"] .${PANEL_CLASS}__check {
+    visibility: hidden;
   }
 `;
 
-function createOptions(options) {
-  return options.map(([value, label]) => {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = label;
-    return option;
-  });
+function createSvg(pathData, viewBox = "0 0 24 24") {
+  const icon = document.createElementNS(SVG_NAMESPACE, "svg");
+  icon.setAttribute("viewBox", viewBox);
+  icon.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS(SVG_NAMESPACE, "path");
+  path.setAttribute("d", pathData);
+  icon.append(path);
+  return icon;
 }
 
-function createSwitch(name, title, description) {
+function getOptionLabel(options, value) {
+  return options.find(([optionValue]) => optionValue === value)?.[1] ?? "未設定";
+}
+
+function createHeader(title, onBack) {
+  const header = document.createElement("header");
+  header.className = `${PANEL_CLASS}__header${onBack ? "" : ` ${PANEL_CLASS}__header--main`}`;
+  if (onBack) {
+    const back = document.createElement("button");
+    back.className = `${PANEL_CLASS}__back`;
+    back.type = "button";
+    back.title = "戻る";
+    back.setAttribute("aria-label", "戻る");
+    back.append(createSvg("M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12l6.6-6.6Z"));
+    back.addEventListener("click", onBack);
+    header.append(back);
+  }
+  const heading = document.createElement("div");
+  heading.className = `${PANEL_CLASS}__title`;
+  heading.textContent = title;
+  header.append(heading);
+  return header;
+}
+
+function createIconContainer(pathData) {
+  const container = document.createElement("span");
+  container.className = `${PANEL_CLASS}__icon`;
+  container.append(createSvg(pathData));
+  return container;
+}
+
+function createSwitchItem(name, title, description, iconPath, saveChange) {
   const row = document.createElement("label");
-  row.className = `${PANEL_CLASS}__row`;
+  row.className = `${PANEL_CLASS}__item`;
+  row.append(createIconContainer(iconPath));
   const label = document.createElement("span");
   label.className = `${PANEL_CLASS}__label`;
   label.textContent = title;
@@ -201,6 +302,11 @@ function createSwitch(name, title, description) {
   input.type = "checkbox";
   input.dataset.setting = name;
   input.setAttribute("role", "switch");
+  input.addEventListener("change", () => {
+    const changes = { [name]: input.checked };
+    if (name === "detailedLogging" && !input.checked) changes.diagnosticStage = "full";
+    saveChange(changes);
+  });
   const track = document.createElement("span");
   track.className = `${PANEL_CLASS}__track`;
   control.append(input, track);
@@ -208,16 +314,26 @@ function createSwitch(name, title, description) {
   return row;
 }
 
-function createSelect(name, title, options) {
-  const row = document.createElement("label");
-  row.className = `${PANEL_CLASS}__row`;
+function createSubmenuItem(setting, title, iconPath, showSubmenu) {
+  const row = document.createElement("button");
+  row.className = `${PANEL_CLASS}__item`;
+  row.type = "button";
+  row.dataset.submenuItem = setting;
+  row.append(createIconContainer(iconPath));
   const label = document.createElement("span");
   label.className = `${PANEL_CLASS}__label`;
   label.textContent = title;
-  const select = document.createElement("select");
-  select.dataset.setting = name;
-  select.append(...createOptions(options));
-  row.append(label, select);
+  const value = document.createElement("span");
+  value.className = `${PANEL_CLASS}__value`;
+  const valueText = document.createElement("span");
+  valueText.className = `${PANEL_CLASS}__value-text`;
+  valueText.dataset.valueFor = setting;
+  const chevron = document.createElement("span");
+  chevron.className = `${PANEL_CLASS}__chevron`;
+  chevron.append(createSvg("m9 4 8 8-8 8-1.4-1.4 6.6-6.6-6.6-6.6L9 4Z"));
+  value.append(valueText, chevron);
+  row.append(label, value);
+  row.addEventListener("click", () => showSubmenu(setting));
   return row;
 }
 
@@ -227,33 +343,103 @@ function createPanel(onChange) {
   panel.hidden = true;
   panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-label", "YouTube Video Filter設定");
-  const header = document.createElement("header");
-  header.className = `${PANEL_CLASS}__header`;
-  header.append(document.createTextNode("YouTube Video Filter"));
-  const badge = document.createElement("span");
-  badge.className = `${PANEL_CLASS}__badge`;
-  badge.textContent = "WebGPU";
-  header.append(badge);
-  const enabledRow = createSwitch("enabled", "Anime4K", "動画へリアルタイム適用");
-  const profileRow = createSelect("profile", "処理モード", PROFILES);
-  const colorRangeRow = createSelect("colorRangeMode", "カラーレンジ", COLOR_RANGE_MODES);
-  const loggingRow = createSwitch("detailedLogging", "詳細ログ", "問題調査用（動作が重くなる場合があります）");
-  const diagnosticRow = createSelect("diagnosticStage", "診断パス", DIAGNOSTIC_STAGES);
-  diagnosticRow.dataset.diagnosticRow = "true";
-  const warning = document.createElement("p");
-  warning.className = `${PANEL_CLASS}__warning`;
-  warning.textContent = "詳細ログではフレーム状態を継続監視するため、再生やブラウザの動作が重くなる可能性があります。";
-  panel.append(header, enabledRow, profileRow, colorRangeRow, loggingRow, diagnosticRow, warning);
-  panel.addEventListener("change", (event) => {
-    const input = event.target.closest("[data-setting]");
-    if (!input) return;
-    const value = input.type === "checkbox" ? input.checked : input.value;
-    const changes = { [input.dataset.setting]: value };
-    if (input.dataset.setting === "detailedLogging" && !value) changes.diagnosticStage = "full";
+
+  const pages = new Map();
+  let currentPage = "main";
+  const showPage = (name) => {
+    currentPage = name;
+    for (const [pageName, page] of pages) page.hidden = pageName !== name;
+    pages.get(name)?.querySelector("button, input")?.focus({ preventScroll: true });
+  };
+  const saveChange = (changes) => {
     Promise.resolve(onChange(changes)).catch((error) => {
       console.error("[YouTube Video Filter] プレイヤー内設定を保存できませんでした", error);
     });
-  });
+  };
+
+  const mainPage = document.createElement("div");
+  mainPage.className = `${PANEL_CLASS}__page`;
+  mainPage.append(createHeader("YouTube Video Filter"));
+  const mainMenu = document.createElement("div");
+  mainMenu.className = `${PANEL_CLASS}__menu ytp-panel-menu`;
+  const showSubmenu = (setting) => showPage(setting);
+  const anime4kItem = createSwitchItem(
+    "enabled",
+    "Anime4K",
+    "アップスケーリング",
+    "M4 5h10v2H6v10h12v-5h2v7H4V5Zm14-3 .8 2.2L21 5l-2.2.8L18 8l-.8-2.2L15 5l2.2-.8L18 2Z",
+    saveChange
+  );
+  const profileItem = createSubmenuItem("profile", "処理モード", "M3 17v2h6v-2H3Zm0-6v2h12v-2H3Zm0-6v2h18V5H3Z", showSubmenu);
+  const colorItem = createSubmenuItem("colorRangeMode", "カラーレンジ", "M12 3a9 9 0 1 0 0 18V3Zm0 2v14a7 7 0 0 1 0-14Z", showSubmenu);
+  const loggingItem = createSwitchItem(
+    "detailedLogging",
+    "詳細ログ",
+    "有効にすると動作が重くなる可能性があります",
+    "M11 17h2v-6h-2v6Zm0-8h2V7h-2v2Zm1-6a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 16a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z",
+    saveChange
+  );
+  const diagnosticItem = createSubmenuItem("diagnosticStage", "診断パス", "M4 4h16v2H4V4Zm0 7h16v2H4v-2Zm0 7h10v2H4v-2Z", showSubmenu);
+  diagnosticItem.dataset.diagnosticRow = "true";
+  mainMenu.append(anime4kItem, profileItem, colorItem, loggingItem, diagnosticItem);
+  mainPage.append(mainMenu);
+  pages.set("main", mainPage);
+  panel.append(mainPage);
+
+  for (const [setting, descriptor] of Object.entries(SUBMENUS)) {
+    const page = document.createElement("div");
+    page.className = `${PANEL_CLASS}__page`;
+    page.hidden = true;
+    page.append(createHeader(descriptor.title, () => showPage("main")));
+    const menu = document.createElement("div");
+    menu.className = `${PANEL_CLASS}__menu ytp-panel-menu`;
+    menu.setAttribute("role", "menu");
+    for (const [value, label] of descriptor.options) {
+      const option = document.createElement("button");
+      option.className = `${PANEL_CLASS}__item ${PANEL_CLASS}__option`;
+      option.type = "button";
+      option.dataset.optionSetting = setting;
+      option.dataset.optionValue = value;
+      option.setAttribute("role", "menuitemradio");
+      option.setAttribute("aria-checked", "false");
+      const check = document.createElement("span");
+      check.className = `${PANEL_CLASS}__check`;
+      check.append(createSvg("m9.2 16.2-4.4-4.4L3.4 13.2 9.2 19 21 7.2l-1.4-1.4-10.4 10.4Z"));
+      const text = document.createElement("span");
+      text.className = `${PANEL_CLASS}__label`;
+      text.textContent = label;
+      option.append(check, text);
+      option.addEventListener("click", () => {
+        panel.setSetting(setting, value);
+        saveChange({ [setting]: value });
+        showPage("main");
+      });
+      menu.append(option);
+    }
+    page.append(menu);
+    pages.set(setting, page);
+    panel.append(page);
+  }
+
+  panel.setSetting = (setting, value) => {
+    const descriptor = SUBMENUS[setting];
+    if (descriptor) {
+      const valueElement = panel.querySelector(`[data-value-for="${setting}"]`);
+      if (valueElement) valueElement.textContent = getOptionLabel(descriptor.options, value);
+      for (const option of panel.querySelectorAll(`[data-option-setting="${setting}"]`)) {
+        option.setAttribute("aria-checked", String(option.dataset.optionValue === value));
+      }
+    }
+  };
+  panel.syncSettings = (settings) => {
+    for (const input of panel.querySelectorAll("input[data-setting]")) {
+      input.checked = Boolean(settings[input.dataset.setting]);
+    }
+    for (const setting of Object.keys(SUBMENUS)) panel.setSetting(setting, settings[setting]);
+    diagnosticItem.hidden = !settings.detailedLogging;
+  };
+  panel.showMain = () => showPage("main");
+  panel.isMainPage = () => currentPage === "main";
   panel.addEventListener("pointerdown", (event) => event.stopPropagation());
   return panel;
 }
@@ -266,15 +452,8 @@ function createButton() {
   button.setAttribute("aria-label", "YouTube Video Filter設定");
   button.setAttribute("aria-haspopup", "dialog");
   button.setAttribute("aria-expanded", "false");
-  const svgNamespace = "http://www.w3.org/2000/svg";
-  const icon = document.createElementNS(svgNamespace, "svg");
   // パスの実座標範囲へ切り詰め、SVG自体が持つ空白を除去する。
-  icon.setAttribute("viewBox", "4 2 17 17");
-  icon.setAttribute("aria-hidden", "true");
-  const path = document.createElementNS(svgNamespace, "path");
-  path.setAttribute("d", "M4 5h10v2H6v10h12v-5h2v7H4V5Zm14-3 .8 2.2L21 5l-2.2.8L18 8l-.8-2.2L15 5l2.2-.8L18 2Zm-5 6 1.1 2.9L17 12l-2.9 1.1L13 16l-1.1-2.9L9 12l2.9-1.1L13 8Z");
-  icon.append(path);
-  button.append(icon);
+  button.append(createSvg("M4 5h10v2H6v10h12v-5h2v7H4V5Zm14-3 .8 2.2L21 5l-2.2.8L18 8l-.8-2.2L15 5l2.2-.8L18 2Zm-5 6 1.1 2.9L17 12l-2.9 1.1L13 16l-1.1-2.9L9 12l2.9-1.1L13 8Z", "4 2 17 17"));
   return button;
 }
 
@@ -290,6 +469,7 @@ export function createPlayerSettingsUi({ getSettings, onChange }) {
   const close = () => {
     if (!panel || !button) return;
     panel.hidden = true;
+    panel.showMain();
     button.setAttribute("aria-expanded", "false");
   };
   const sync = () => {
@@ -298,12 +478,7 @@ export function createPlayerSettingsUi({ getSettings, onChange }) {
     const filterEnabled = settings.enabled || settings.colorRangeMode !== "none";
     button.classList.toggle("is-enabled", filterEnabled);
     button.title = filterEnabled ? "YouTube Video Filter設定（有効）" : "YouTube Video Filter設定（無効）";
-    for (const input of panel.querySelectorAll("[data-setting]")) {
-      const value = settings[input.dataset.setting];
-      if (input.type === "checkbox") input.checked = Boolean(value);
-      else input.value = value;
-    }
-    panel.querySelector("[data-diagnostic-row]").hidden = !settings.detailedLogging;
+    panel.syncSettings(settings);
   };
   const ensure = () => {
     const player = document.querySelector("#movie_player");
@@ -320,7 +495,10 @@ export function createPlayerSettingsUi({ getSettings, onChange }) {
       const opening = panel.hidden;
       panel.hidden = !opening;
       button.setAttribute("aria-expanded", String(opening));
-      if (opening) sync();
+      if (opening) {
+        panel.showMain();
+        sync();
+      }
     });
     // 全画面など右端の主要操作を押しのけないよう、右側ボタン群の先頭へ置く。
     controls.insertBefore(button, controls.firstElementChild);
