@@ -1,6 +1,6 @@
 const BUTTON_CLASS = "ytp-youtube-filter-button";
 const PANEL_CLASS = "ytp-youtube-filter-settings";
-const STYLE_ID = "youtube-filter-player-settings-style";
+const STYLE_ID = "youtube-video-filter-player-settings-style";
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
 const PROFILES = [
@@ -74,185 +74,44 @@ const PLAYER_SETTINGS_CSS = `
     box-sizing: border-box;
     fill: currentColor;
   }
-  .${PANEL_CLASS} {
-    position: absolute;
+  .${PANEL_CLASS}.ytp-popup.ytp-settings-menu {
     right: 12px;
     bottom: 54px;
     z-index: 75;
-    width: min(320px, calc(100% - 24px));
+    width: min(437px, calc(100% - 24px));
+    height: auto;
     max-height: calc(100% - 72px);
-    overflow: hidden;
-    border-radius: 12px;
-    background: rgba(28, 28, 28, .98);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, .55);
-    color: #fff;
-    font-family: Roboto, Arial, sans-serif;
-    font-size: 13px;
-    line-height: 1.4;
-    text-align: left;
   }
   .${PANEL_CLASS}[hidden],
-  .${PANEL_CLASS}__page[hidden],
-  .${PANEL_CLASS}__item[hidden] {
+  .${PANEL_CLASS} .ytp-panel[hidden],
+  .${PANEL_CLASS} .ytp-menuitem[hidden] {
     display: none !important;
   }
-  .${PANEL_CLASS} * {
-    box-sizing: border-box;
-  }
-  .${PANEL_CLASS}__page {
+  .${PANEL_CLASS} .ytp-popup-content,
+  .${PANEL_CLASS} .ytp-panel,
+  .${PANEL_CLASS} .ytp-panel-menu {
+    width: 100%;
+    height: auto;
     max-height: calc(100vh - 120px);
-    overflow: auto;
+  }
+  .${PANEL_CLASS} .ytp-panel-menu {
+    overflow-y: auto;
     overscroll-behavior: contain;
   }
-  .${PANEL_CLASS}__header {
-    display: grid;
-    grid-template-columns: 40px minmax(0, 1fr) 40px;
-    align-items: center;
-    min-height: 48px;
-    border-bottom: 1px solid rgba(255, 255, 255, .1);
-  }
-  .${PANEL_CLASS}__header--main {
-    grid-template-columns: 1fr;
-    padding: 0 16px;
-  }
-  .${PANEL_CLASS}__title {
-    overflow: hidden;
-    font-size: 14px;
-    font-weight: 500;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .${PANEL_CLASS}__back {
-    display: grid;
-    width: 40px;
-    height: 40px;
-    padding: 8px;
-    border: 0;
-    border-radius: 50%;
-    background: transparent;
-    color: #fff;
-    cursor: pointer;
-    place-items: center;
-  }
-  .${PANEL_CLASS}__back:hover,
-  .${PANEL_CLASS}__back:focus-visible {
-    background: rgba(255, 255, 255, .1);
-    outline: none;
-  }
-  .${PANEL_CLASS}__back svg,
-  .${PANEL_CLASS}__icon svg,
-  .${PANEL_CLASS}__chevron svg,
-  .${PANEL_CLASS}__check svg {
-    width: 24px;
-    height: 24px;
-    fill: currentColor;
-  }
-  .${PANEL_CLASS}__menu {
-    padding: 8px 0;
-  }
-  .${PANEL_CLASS}__item {
-    display: grid;
-    grid-template-columns: 40px minmax(0, 1fr) auto;
-    align-items: center;
-    width: 100%;
-    min-height: 48px;
-    padding: 6px 12px;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: #fff;
-    font: inherit;
-    text-align: left;
-  }
-  button.${PANEL_CLASS}__item,
-  label.${PANEL_CLASS}__item {
-    cursor: pointer;
-  }
-  .${PANEL_CLASS}__item:hover,
-  .${PANEL_CLASS}__item:focus-within,
-  button.${PANEL_CLASS}__item:focus-visible {
-    background: rgba(255, 255, 255, .1);
-  }
-  .${PANEL_CLASS}__icon,
-  .${PANEL_CLASS}__check {
-    display: grid;
-    color: #fff;
-    place-items: center;
-  }
-  .${PANEL_CLASS}__label {
-    min-width: 0;
-    padding-right: 12px;
-  }
-  .${PANEL_CLASS}__label small {
+  .${PANEL_CLASS} .ytp-menuitem-label small {
     display: block;
     margin-top: 2px;
     color: #aaa;
     font-size: 11px;
     line-height: 1.35;
   }
-  .${PANEL_CLASS}__value {
-    display: flex;
-    align-items: center;
-    max-width: 150px;
-    color: #ddd;
-    gap: 4px;
+  .${PANEL_CLASS} .ytp-panel-back-button svg,
+  .${PANEL_CLASS} .ytp-menuitem-icon svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
   }
-  .${PANEL_CLASS}__value-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .${PANEL_CLASS}__chevron {
-    display: grid;
-    flex: 0 0 auto;
-    transform: scale(.75);
-    place-items: center;
-  }
-  .${PANEL_CLASS}__switch {
-    position: relative;
-    width: 36px;
-    height: 20px;
-  }
-  .${PANEL_CLASS}__switch input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    opacity: 0;
-  }
-  .${PANEL_CLASS}__track {
-    display: block;
-    width: 36px;
-    height: 14px;
-    margin-top: 3px;
-    border-radius: 7px;
-    background: #717171;
-  }
-  .${PANEL_CLASS}__track::after {
-    display: block;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: #bdbdbd;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, .55);
-    transform: translate(-2px, -3px);
-    transition: transform 120ms ease, background 120ms ease;
-    content: "";
-  }
-  .${PANEL_CLASS}__switch input:checked + .${PANEL_CLASS}__track {
-    background: rgba(255, 0, 0, .55);
-  }
-  .${PANEL_CLASS}__switch input:checked + .${PANEL_CLASS}__track::after {
-    background: #f00;
-    transform: translate(18px, -3px);
-  }
-  .${PANEL_CLASS}__switch input:focus-visible + .${PANEL_CLASS}__track {
-    outline: 2px solid #fff;
-    outline-offset: 2px;
-  }
-  .${PANEL_CLASS}__option {
-    grid-template-columns: 40px minmax(0, 1fr);
-  }
-  .${PANEL_CLASS}__option[aria-checked="false"] .${PANEL_CLASS}__check {
+  .${PANEL_CLASS} .${PANEL_CLASS}__option[aria-checked="false"] .ytp-menuitem-icon {
     visibility: hidden;
   }
 `;
@@ -267,103 +126,119 @@ function createSvg(pathData, viewBox = "0 0 24 24") {
   return icon;
 }
 
-function getOptionLabel(options, value) {
-  return options.find(([optionValue]) => optionValue === value)?.[1] ?? "未設定";
+function makeInteractive(element, activate) {
+  element.addEventListener("click", activate);
+  element.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    activate();
+  });
 }
 
-function createHeader(title, onBack) {
-  const header = document.createElement("header");
-  header.className = `${PANEL_CLASS}__header${onBack ? "" : ` ${PANEL_CLASS}__header--main`}`;
-  if (onBack) {
-    const back = document.createElement("button");
-    back.className = `${PANEL_CLASS}__back`;
-    back.type = "button";
-    back.title = "戻る";
-    back.setAttribute("aria-label", "戻る");
-    back.append(createSvg("M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12l6.6-6.6Z"));
-    back.addEventListener("click", onBack);
-    header.append(back);
-  }
-  const heading = document.createElement("div");
-  heading.className = `${PANEL_CLASS}__title`;
-  heading.textContent = title;
-  header.append(heading);
-  return header;
+function createMenuIcon(pathData) {
+  const icon = document.createElement("div");
+  icon.className = "ytp-menuitem-icon";
+  icon.append(createSvg(pathData));
+  return icon;
 }
 
-function createIconContainer(pathData) {
-  const container = document.createElement("span");
-  container.className = `${PANEL_CLASS}__icon`;
-  container.append(createSvg(pathData));
-  return container;
-}
-
-function createSwitchItem(name, title, description, iconPath, saveChange) {
-  const row = document.createElement("label");
-  row.className = `${PANEL_CLASS}__item`;
-  row.append(createIconContainer(iconPath));
-  const label = document.createElement("span");
-  label.className = `${PANEL_CLASS}__label`;
-  label.textContent = title;
+function createMenuLabel(title, description) {
+  const label = document.createElement("div");
+  label.className = "ytp-menuitem-label";
+  label.append(document.createTextNode(title));
   if (description) {
     const note = document.createElement("small");
     note.textContent = description;
     label.append(note);
   }
-  const control = document.createElement("span");
-  control.className = `${PANEL_CLASS}__switch`;
-  const input = document.createElement("input");
-  input.type = "checkbox";
-  input.dataset.setting = name;
-  input.setAttribute("role", "switch");
-  input.addEventListener("change", () => {
-    const changes = { [name]: input.checked };
-    if (name === "detailedLogging" && !input.checked) changes.diagnosticStage = "full";
+  return label;
+}
+
+function createToggleItem(setting, title, description, iconPath, saveChange) {
+  const item = document.createElement("div");
+  item.className = "ytp-menuitem";
+  item.dataset.toggleSetting = setting;
+  item.setAttribute("role", "menuitemcheckbox");
+  item.setAttribute("aria-checked", "false");
+  item.setAttribute("aria-label", title);
+  item.tabIndex = 0;
+  const content = document.createElement("div");
+  content.className = "ytp-menuitem-content";
+  const toggle = document.createElement("div");
+  toggle.className = "ytp-menuitem-toggle-checkbox";
+  content.append(toggle);
+  item.append(createMenuIcon(iconPath), createMenuLabel(title, description), content);
+  makeInteractive(item, () => {
+    const checked = item.getAttribute("aria-checked") !== "true";
+    item.setAttribute("aria-checked", String(checked));
+    const changes = { [setting]: checked };
+    if (setting === "detailedLogging" && !checked) changes.diagnosticStage = "full";
     saveChange(changes);
   });
-  const track = document.createElement("span");
-  track.className = `${PANEL_CLASS}__track`;
-  control.append(input, track);
-  row.append(label, control);
-  return row;
+  return item;
 }
 
 function createSubmenuItem(setting, title, iconPath, showSubmenu) {
-  const row = document.createElement("button");
-  row.className = `${PANEL_CLASS}__item`;
-  row.type = "button";
-  row.dataset.submenuItem = setting;
-  row.append(createIconContainer(iconPath));
-  const label = document.createElement("span");
-  label.className = `${PANEL_CLASS}__label`;
-  label.textContent = title;
-  const value = document.createElement("span");
-  value.className = `${PANEL_CLASS}__value`;
-  const valueText = document.createElement("span");
-  valueText.className = `${PANEL_CLASS}__value-text`;
-  valueText.dataset.valueFor = setting;
-  const chevron = document.createElement("span");
-  chevron.className = `${PANEL_CLASS}__chevron`;
-  chevron.append(createSvg("m9 4 8 8-8 8-1.4-1.4 6.6-6.6-6.6-6.6L9 4Z"));
-  value.append(valueText, chevron);
-  row.append(label, value);
-  row.addEventListener("click", () => showSubmenu(setting));
-  return row;
+  const item = document.createElement("div");
+  item.className = "ytp-menuitem";
+  item.dataset.submenuItem = setting;
+  item.setAttribute("role", "menuitem");
+  item.setAttribute("aria-haspopup", "true");
+  item.tabIndex = 0;
+  const content = document.createElement("div");
+  content.className = "ytp-menuitem-content";
+  content.dataset.valueFor = setting;
+  item.append(createMenuIcon(iconPath), createMenuLabel(title), content);
+  makeInteractive(item, () => showSubmenu(setting));
+  return item;
+}
+
+function createPanelHeader(title, showMain) {
+  const header = document.createElement("div");
+  header.className = "ytp-panel-header";
+  const back = document.createElement("div");
+  back.className = "ytp-panel-back-button";
+  back.setAttribute("role", "button");
+  back.setAttribute("aria-label", "戻る");
+  back.tabIndex = 0;
+  back.append(createSvg("M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12l6.6-6.6Z"));
+  makeInteractive(back, showMain);
+  const heading = document.createElement("div");
+  heading.className = "ytp-panel-title";
+  heading.textContent = title;
+  header.append(back, heading);
+  return header;
 }
 
 function createPanel(onChange) {
-  const panel = document.createElement("section");
-  panel.className = PANEL_CLASS;
-  panel.hidden = true;
-  panel.setAttribute("role", "dialog");
-  panel.setAttribute("aria-label", "YouTube Video Filter設定");
+  const root = document.createElement("div");
+  root.className = `${PANEL_CLASS} ytp-popup ytp-settings-menu`;
+  root.dataset.layer = "6";
+  root.hidden = true;
+  root.setAttribute("role", "dialog");
+  root.setAttribute("aria-label", "YouTube Video Filter設定");
+
+  const focusBefore = document.createElement("div");
+  focusBefore.className = "ytp-focus-trap-before";
+  focusBefore.tabIndex = 0;
+  const popupContent = document.createElement("div");
+  popupContent.className = "ytp-popup-content";
+  const focusAfter = document.createElement("div");
+  focusAfter.className = "ytp-focus-trap-after";
+  focusAfter.tabIndex = 0;
+  root.append(focusBefore, popupContent, focusAfter);
 
   const pages = new Map();
   let currentPage = "main";
-  const showPage = (name) => {
+  const focusableItems = () => [...pages.get(currentPage).querySelectorAll('[tabindex="0"]')]
+    .filter((element) => !element.hidden);
+  focusBefore.addEventListener("focus", () => focusableItems().at(-1)?.focus());
+  focusAfter.addEventListener("focus", () => focusableItems().at(0)?.focus());
+
+  const showPage = (name, focus = true) => {
     currentPage = name;
     for (const [pageName, page] of pages) page.hidden = pageName !== name;
-    pages.get(name)?.querySelector("button, input")?.focus({ preventScroll: true });
+    if (focus) queueMicrotask(() => focusableItems().at(0)?.focus({ preventScroll: true }));
   };
   const saveChange = (changes) => {
     Promise.resolve(onChange(changes)).catch((error) => {
@@ -371,91 +246,87 @@ function createPanel(onChange) {
     });
   };
 
-  const mainPage = document.createElement("div");
-  mainPage.className = `${PANEL_CLASS}__page`;
-  mainPage.append(createHeader("YouTube Video Filter"));
+  const mainPanel = document.createElement("div");
+  mainPanel.className = "ytp-panel";
   const mainMenu = document.createElement("div");
-  mainMenu.className = `${PANEL_CLASS}__menu ytp-panel-menu`;
-  const showSubmenu = (setting) => showPage(setting);
-  const anime4kItem = createSwitchItem(
+  mainMenu.className = "ytp-panel-menu";
+  mainMenu.setAttribute("role", "menu");
+  const anime4kItem = createToggleItem(
     "enabled",
     "Anime4K",
     "アップスケーリング",
     "M4 5h10v2H6v10h12v-5h2v7H4V5Zm14-3 .8 2.2L21 5l-2.2.8L18 8l-.8-2.2L15 5l2.2-.8L18 2Z",
     saveChange
   );
-  const profileItem = createSubmenuItem("profile", "処理モード", "M3 17v2h6v-2H3Zm0-6v2h12v-2H3Zm0-6v2h18V5H3Z", showSubmenu);
-  const colorItem = createSubmenuItem("colorRangeMode", "カラーレンジ", "M12 3a9 9 0 1 0 0 18V3Zm0 2v14a7 7 0 0 1 0-14Z", showSubmenu);
-  const loggingItem = createSwitchItem(
+  const profileItem = createSubmenuItem("profile", "処理モード", "M3 17v2h6v-2H3Zm0-6v2h12v-2H3Zm0-6v2h18V5H3Z", showPage);
+  const colorItem = createSubmenuItem("colorRangeMode", "カラーレンジ", "M12 3a9 9 0 1 0 0 18V3Zm0 2v14a7 7 0 0 1 0-14Z", showPage);
+  const loggingItem = createToggleItem(
     "detailedLogging",
     "詳細ログ",
     "有効にすると動作が重くなる可能性があります",
     "M11 17h2v-6h-2v6Zm0-8h2V7h-2v2Zm1-6a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 16a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z",
     saveChange
   );
-  const diagnosticItem = createSubmenuItem("diagnosticStage", "診断パス", "M4 4h16v2H4V4Zm0 7h16v2H4v-2Zm0 7h10v2H4v-2Z", showSubmenu);
+  const diagnosticItem = createSubmenuItem("diagnosticStage", "診断パス", "M4 4h16v2H4V4Zm0 7h16v2H4v-2Zm0 7h10v2H4v-2Z", showPage);
   diagnosticItem.dataset.diagnosticRow = "true";
   mainMenu.append(anime4kItem, profileItem, colorItem, loggingItem, diagnosticItem);
-  mainPage.append(mainMenu);
-  pages.set("main", mainPage);
-  panel.append(mainPage);
+  mainPanel.append(mainMenu);
+  pages.set("main", mainPanel);
+  popupContent.append(mainPanel);
 
   for (const [setting, descriptor] of Object.entries(SUBMENUS)) {
-    const page = document.createElement("div");
-    page.className = `${PANEL_CLASS}__page`;
-    page.hidden = true;
-    page.append(createHeader(descriptor.title, () => showPage("main")));
+    const panel = document.createElement("div");
+    panel.className = "ytp-panel";
+    panel.hidden = true;
+    panel.append(createPanelHeader(descriptor.title, () => showPage("main")));
     const menu = document.createElement("div");
-    menu.className = `${PANEL_CLASS}__menu ytp-panel-menu`;
+    menu.className = "ytp-panel-menu";
     menu.setAttribute("role", "menu");
     for (const [value, label] of descriptor.options) {
-      const option = document.createElement("button");
-      option.className = `${PANEL_CLASS}__item ${PANEL_CLASS}__option`;
-      option.type = "button";
+      const option = document.createElement("div");
+      option.className = `ytp-menuitem ${PANEL_CLASS}__option`;
       option.dataset.optionSetting = setting;
       option.dataset.optionValue = value;
       option.setAttribute("role", "menuitemradio");
       option.setAttribute("aria-checked", "false");
-      const check = document.createElement("span");
-      check.className = `${PANEL_CLASS}__check`;
-      check.append(createSvg("m9.2 16.2-4.4-4.4L3.4 13.2 9.2 19 21 7.2l-1.4-1.4-10.4 10.4Z"));
-      const text = document.createElement("span");
-      text.className = `${PANEL_CLASS}__label`;
-      text.textContent = label;
-      option.append(check, text);
-      option.addEventListener("click", () => {
-        panel.setSetting(setting, value);
+      option.setAttribute("aria-label", label);
+      option.tabIndex = 0;
+      option.append(
+        createMenuIcon("m9.2 16.2-4.4-4.4L3.4 13.2 9.2 19 21 7.2l-1.4-1.4-10.4 10.4Z"),
+        createMenuLabel(label),
+        Object.assign(document.createElement("div"), { className: "ytp-menuitem-content" })
+      );
+      makeInteractive(option, () => {
+        root.setSetting(setting, value);
         saveChange({ [setting]: value });
         showPage("main");
       });
       menu.append(option);
     }
-    page.append(menu);
-    pages.set(setting, page);
-    panel.append(page);
+    panel.append(menu);
+    pages.set(setting, panel);
+    popupContent.append(panel);
   }
 
-  panel.setSetting = (setting, value) => {
+  root.setSetting = (setting, value) => {
     const descriptor = SUBMENUS[setting];
-    if (descriptor) {
-      const valueElement = panel.querySelector(`[data-value-for="${setting}"]`);
-      if (valueElement) valueElement.textContent = getOptionLabel(descriptor.options, value);
-      for (const option of panel.querySelectorAll(`[data-option-setting="${setting}"]`)) {
-        option.setAttribute("aria-checked", String(option.dataset.optionValue === value));
-      }
+    const currentLabel = descriptor?.options.find(([optionValue]) => optionValue === value)?.[1] ?? "未設定";
+    const valueElement = root.querySelector(`[data-value-for="${setting}"]`);
+    if (valueElement) valueElement.textContent = currentLabel;
+    for (const option of root.querySelectorAll(`[data-option-setting="${setting}"]`)) {
+      option.setAttribute("aria-checked", String(option.dataset.optionValue === value));
     }
   };
-  panel.syncSettings = (settings) => {
-    for (const input of panel.querySelectorAll("input[data-setting]")) {
-      input.checked = Boolean(settings[input.dataset.setting]);
+  root.syncSettings = (settings) => {
+    for (const item of root.querySelectorAll("[data-toggle-setting]")) {
+      item.setAttribute("aria-checked", String(Boolean(settings[item.dataset.toggleSetting])));
     }
-    for (const setting of Object.keys(SUBMENUS)) panel.setSetting(setting, settings[setting]);
+    for (const setting of Object.keys(SUBMENUS)) root.setSetting(setting, settings[setting]);
     diagnosticItem.hidden = !settings.detailedLogging;
   };
-  panel.showMain = () => showPage("main");
-  panel.isMainPage = () => currentPage === "main";
-  panel.addEventListener("pointerdown", (event) => event.stopPropagation());
-  return panel;
+  root.showMain = (focus = true) => showPage("main", focus);
+  root.addEventListener("pointerdown", (event) => event.stopPropagation());
+  return root;
 }
 
 function createButton() {
@@ -483,7 +354,7 @@ export function createPlayerSettingsUi({ getSettings, onChange }) {
   const close = () => {
     if (!panel || !button) return;
     panel.hidden = true;
-    panel.showMain();
+    panel.showMain(false);
     button.setAttribute("aria-expanded", "false");
   };
   const sync = () => {
@@ -510,8 +381,8 @@ export function createPlayerSettingsUi({ getSettings, onChange }) {
       panel.hidden = !opening;
       button.setAttribute("aria-expanded", String(opening));
       if (opening) {
-        panel.showMain();
         sync();
+        panel.showMain();
       }
     });
     // 全画面など右端の主要操作を押しのけないよう、右側ボタン群の先頭へ置く。
