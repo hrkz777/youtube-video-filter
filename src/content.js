@@ -13,6 +13,7 @@ import {
   Original
 } from "anime4k-webgpu";
 import { render } from "./renderer.js";
+import { createPlayerSettingsUi } from "./player-settings.js";
 
 const CANVAS_CLASS = "anime4k-for-youtube-canvas";
 const VIDEO_CLASS = "anime4k-for-youtube-source";
@@ -20,6 +21,7 @@ let activeVideo = null;
 let initializationInProgress = false;
 let detailedLogging = false;
 let cancelActiveProcessing = null;
+let playerSettingsUi = null;
 let currentSettings = {
   enabled: true,
   profile: "auto",
@@ -570,6 +572,7 @@ function applySettings(changes) {
   const previousSettings = currentSettings;
   currentSettings = normalizeSettings({ ...currentSettings, ...changes });
   detailedLogging = currentSettings.detailedLogging;
+  playerSettingsUi?.sync();
 
   diagnostic("設定変更を検出", {
     previous: previousSettings,
@@ -593,6 +596,10 @@ async function start() {
   });
   currentSettings = normalizeSettings(settings);
   detailedLogging = currentSettings.detailedLogging;
+  playerSettingsUi = createPlayerSettingsUi({
+    getSettings: () => currentSettings,
+    onChange: (changes) => chrome.storage.local.set(changes)
+  });
 
   diagnostic("詳細ログモードで開始", {
     profile: currentSettings.profile,
@@ -601,11 +608,15 @@ async function start() {
     webGpuAvailable: Boolean(navigator.gpu)
   });
 
-  new MutationObserver(findYouTubeVideo).observe(document.documentElement, {
+  const refreshPlayer = () => {
+    findYouTubeVideo();
+    playerSettingsUi.ensure();
+  };
+  new MutationObserver(refreshPlayer).observe(document.documentElement, {
     childList: true,
     subtree: true
   });
-  window.addEventListener("yt-navigate-finish", findYouTubeVideo);
+  window.addEventListener("yt-navigate-finish", refreshPlayer);
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
     const relevantChanges = {};
@@ -614,7 +625,7 @@ async function start() {
     }
     if (Object.keys(relevantChanges).length > 0) applySettings(relevantChanges);
   });
-  findYouTubeVideo();
+  refreshPlayer();
 }
 
 start().catch((error) => report("拡張機能を開始できませんでした", error));
