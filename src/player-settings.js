@@ -96,8 +96,10 @@ const PLAYER_SETTINGS_CSS = `
   .${PANEL_CLASS} .ytp-panel,
   .${PANEL_CLASS} .ytp-panel-menu {
     width: 100%;
-    height: auto;
     max-height: calc(100vh - 120px);
+  }
+  .${PANEL_CLASS} .ytp-popup-content {
+    position: relative;
   }
   .${PANEL_CLASS} .ytp-panel-menu {
     overflow-y: auto;
@@ -235,6 +237,24 @@ function createPanel(onChange) {
 
   const pages = new Map();
   let currentPage = "main";
+  const updateLayout = () => {
+    const activePanel = pages.get(currentPage);
+    if (!activePanel || root.hidden) return;
+    const header = activePanel.querySelector(".ytp-panel-header");
+    const headerHeight = header ? Math.max(header.offsetHeight, 48) : 0;
+    const menu = activePanel.querySelector(".ytp-panel-menu");
+    const itemHeight = menu
+      ? [...menu.children].reduce((total, item) => total + Math.max(item.offsetHeight, 48), 0)
+      : 0;
+    const menuHeight = Math.max(menu?.scrollHeight ?? 0, itemHeight);
+    const playerHeight = root.parentElement?.clientHeight || window.innerHeight;
+    const maximumHeight = Math.max(48, playerHeight - 72);
+    const height = Math.min(Math.max(48, headerHeight + menuHeight), maximumHeight);
+    root.style.setProperty("height", `${height}px`, "important");
+    popupContent.style.setProperty("height", `${height}px`, "important");
+    activePanel.style.setProperty("height", `${height}px`, "important");
+    if (menu) menu.style.setProperty("height", `${height - headerHeight}px`, "important");
+  };
   const focusableItems = () => [...pages.get(currentPage).querySelectorAll('[tabindex="0"]')]
     .filter((element) => !element.hidden);
   focusBefore.addEventListener("focus", () => focusableItems().at(-1)?.focus());
@@ -243,7 +263,11 @@ function createPanel(onChange) {
   const showPage = (name, focus = true) => {
     currentPage = name;
     for (const [pageName, page] of pages) page.hidden = pageName !== name;
-    if (focus) queueMicrotask(() => focusableItems().at(0)?.focus({ preventScroll: true }));
+    updateLayout();
+    requestAnimationFrame(() => {
+      updateLayout();
+      if (focus) focusableItems().at(0)?.focus({ preventScroll: true });
+    });
   };
   const saveChange = (changes) => {
     Promise.resolve(onChange(changes)).catch((error) => {
@@ -337,6 +361,10 @@ function createPanel(onChange) {
     root.style.setProperty("visibility", open ? "visible" : "hidden", "important");
     root.style.setProperty("opacity", open ? "1" : "0", "important");
     root.style.setProperty("pointer-events", open ? "auto" : "none", "important");
+    if (open) {
+      updateLayout();
+      requestAnimationFrame(updateLayout);
+    }
   };
   root.setOpen(false);
   root.addEventListener("pointerdown", (event) => event.stopPropagation());
