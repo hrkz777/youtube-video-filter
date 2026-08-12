@@ -82,6 +82,11 @@ const PLAYER_SETTINGS_CSS = `
     height: auto;
     max-height: calc(100% - 72px);
   }
+  .${PANEL_CLASS}.ytp-popup.ytp-settings-menu:not([hidden]) {
+    display: block !important;
+    visibility: visible;
+    opacity: 1;
+  }
   .${PANEL_CLASS}[hidden],
   .${PANEL_CLASS} .ytp-panel[hidden],
   .${PANEL_CLASS} .ytp-menuitem[hidden] {

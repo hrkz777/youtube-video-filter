@@ -70,6 +70,8 @@ assert.match(contentBundle, /menuitemradio/);
 assert.match(contentBundle, /optionSetting/);
 assert.match(contentBundle, /ytp-panel-menu/);
 assert.match(contentBundle, /ytp-popup ytp-settings-menu/);
+assert.match(contentBundle, /ytp-settings-menu:not\(\[hidden\]\)/);
+assert.match(contentBundle, /display:\s*block\s*!important/);
 assert.match(contentBundle, /ytp-popup-content/);
 assert.match(contentBundle, /ytp-menuitem-toggle-checkbox/);
 assert.match(contentBundle, /ytp-focus-trap-before/);
