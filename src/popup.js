@@ -1,5 +1,6 @@
 const enabledInput = document.querySelector("#enabled");
 const profileInput = document.querySelector("#profile");
+const colorRangeInput = document.querySelector("#color-range-mode");
 const detailedLoggingInput = document.querySelector("#detailed-logging");
 const diagnosticContainer = document.querySelector("#diagnostic-container");
 const diagnosticStageInput = document.querySelector("#diagnostic-stage");
@@ -22,11 +23,13 @@ async function initialize() {
   const settings = await chrome.storage.local.get({
     enabled: true,
     profile: "auto",
+    colorRangeMode: "none",
     detailedLogging: false,
     diagnosticStage: "full"
   });
   enabledInput.checked = settings.enabled;
   profileInput.value = settings.profile;
+  colorRangeInput.value = settings.colorRangeMode;
   detailedLoggingInput.checked = settings.detailedLogging;
   diagnosticStageInput.value = DIAGNOSTIC_STAGES.has(settings.diagnosticStage)
     ? settings.diagnosticStage
@@ -38,6 +41,7 @@ async function initialize() {
 async function saveSettings(changes, message) {
   enabledInput.disabled = true;
   profileInput.disabled = true;
+  colorRangeInput.disabled = true;
   detailedLoggingInput.disabled = true;
   diagnosticStageInput.disabled = true;
   await chrome.storage.local.set(changes);
@@ -45,6 +49,7 @@ async function saveSettings(changes, message) {
 
   enabledInput.disabled = false;
   profileInput.disabled = false;
+  colorRangeInput.disabled = false;
   detailedLoggingInput.disabled = false;
   diagnosticStageInput.disabled = false;
 }
@@ -59,6 +64,10 @@ enabledInput.addEventListener("change", async () => {
 profileInput.addEventListener("change", async () => {
   modeNote.textContent = MODE_NOTES[profileInput.value];
   await saveSettings({ profile: profileInput.value }, "処理モードを変更しました");
+});
+
+colorRangeInput.addEventListener("change", async () => {
+  await saveSettings({ colorRangeMode: colorRangeInput.value }, "カラーレンジ変換を変更しました");
 });
 
 detailedLoggingInput.addEventListener("change", async () => {

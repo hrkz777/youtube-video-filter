@@ -1,6 +1,6 @@
-const BUTTON_CLASS = "ytp-anime4k-button";
-const PANEL_CLASS = "ytp-anime4k-settings";
-const STYLE_ID = "anime4k-for-youtube-player-settings-style";
+const BUTTON_CLASS = "ytp-youtube-filter-button";
+const PANEL_CLASS = "ytp-youtube-filter-settings";
+const STYLE_ID = "youtube-filter-player-settings-style";
 
 const PROFILES = [
   ["auto", "自動（推奨）"],
@@ -18,6 +18,12 @@ const DIAGNOSTIC_STAGES = [
   ["source", "A: 入力映像のみ"],
   ["clamp", "B: ClampHighlightsまで"],
   ["restore", "C: Restore CNN VLまで"]
+];
+
+const COLOR_RANGE_MODES = [
+  ["none", "変換なし"],
+  ["limited-to-full", "リミテッド → フル"],
+  ["full-to-limited", "フル → リミテッド"]
 ];
 
 const PLAYER_SETTINGS_CSS = `
@@ -220,23 +226,24 @@ function createPanel(onChange) {
   panel.className = PANEL_CLASS;
   panel.hidden = true;
   panel.setAttribute("role", "dialog");
-  panel.setAttribute("aria-label", "Anime4K設定");
+  panel.setAttribute("aria-label", "YouTube Video Filter設定");
   const header = document.createElement("header");
   header.className = `${PANEL_CLASS}__header`;
-  header.append(document.createTextNode("Anime4K for YouTube"));
+  header.append(document.createTextNode("YouTube Video Filter"));
   const badge = document.createElement("span");
   badge.className = `${PANEL_CLASS}__badge`;
   badge.textContent = "WebGPU";
   header.append(badge);
   const enabledRow = createSwitch("enabled", "Anime4K", "動画へリアルタイム適用");
   const profileRow = createSelect("profile", "処理モード", PROFILES);
+  const colorRangeRow = createSelect("colorRangeMode", "カラーレンジ", COLOR_RANGE_MODES);
   const loggingRow = createSwitch("detailedLogging", "詳細ログ", "問題調査用（動作が重くなる場合があります）");
   const diagnosticRow = createSelect("diagnosticStage", "診断パス", DIAGNOSTIC_STAGES);
   diagnosticRow.dataset.diagnosticRow = "true";
   const warning = document.createElement("p");
   warning.className = `${PANEL_CLASS}__warning`;
   warning.textContent = "詳細ログではフレーム状態を継続監視するため、再生やブラウザの動作が重くなる可能性があります。";
-  panel.append(header, enabledRow, profileRow, loggingRow, diagnosticRow, warning);
+  panel.append(header, enabledRow, profileRow, colorRangeRow, loggingRow, diagnosticRow, warning);
   panel.addEventListener("change", (event) => {
     const input = event.target.closest("[data-setting]");
     if (!input) return;
@@ -244,7 +251,7 @@ function createPanel(onChange) {
     const changes = { [input.dataset.setting]: value };
     if (input.dataset.setting === "detailedLogging" && !value) changes.diagnosticStage = "full";
     Promise.resolve(onChange(changes)).catch((error) => {
-      console.error("[Anime4K for YouTube] プレイヤー内設定を保存できませんでした", error);
+      console.error("[YouTube Video Filter] プレイヤー内設定を保存できませんでした", error);
     });
   });
   panel.addEventListener("pointerdown", (event) => event.stopPropagation());
@@ -255,8 +262,8 @@ function createButton() {
   const button = document.createElement("button");
   button.className = `ytp-button ${BUTTON_CLASS}`;
   button.type = "button";
-  button.title = "Anime4K設定";
-  button.setAttribute("aria-label", "Anime4K設定");
+  button.title = "YouTube Video Filter設定";
+  button.setAttribute("aria-label", "YouTube Video Filter設定");
   button.setAttribute("aria-haspopup", "dialog");
   button.setAttribute("aria-expanded", "false");
   const svgNamespace = "http://www.w3.org/2000/svg";
@@ -288,8 +295,9 @@ export function createPlayerSettingsUi({ getSettings, onChange }) {
   const sync = () => {
     if (!panel || !button) return;
     const settings = getSettings();
-    button.classList.toggle("is-enabled", settings.enabled);
-    button.title = settings.enabled ? "Anime4K設定（有効）" : "Anime4K設定（無効）";
+    const filterEnabled = settings.enabled || settings.colorRangeMode !== "none";
+    button.classList.toggle("is-enabled", filterEnabled);
+    button.title = filterEnabled ? "YouTube Video Filter設定（有効）" : "YouTube Video Filter設定（無効）";
     for (const input of panel.querySelectorAll("[data-setting]")) {
       const value = settings[input.dataset.setting];
       if (input.type === "checkbox") input.checked = Boolean(value);

@@ -26,11 +26,30 @@ const FRAGMENT_SHADER = /* wgsl */ `
 @group(0) @binding(0) var sourceSampler: sampler;
 @group(0) @binding(1) var sourceTexture: texture_2d<f32>;
 
+struct DisplaySettings {
+  colorRangeMode: u32,
+}
+@group(0) @binding(2) var<uniform> displaySettings: DisplaySettings;
+
 @fragment
 fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
-  return textureSampleBaseClampToEdge(sourceTexture, sourceSampler, uv);
+  var color = textureSampleBaseClampToEdge(sourceTexture, sourceSampler, uv);
+  if (displaySettings.colorRangeMode == 1u) {
+    // 8-bit limited range (16-235) to full range (0-255)
+    color = vec4f(clamp((color.rgb - vec3f(16.0 / 255.0)) * (255.0 / 219.0), vec3f(0.0), vec3f(1.0)), color.a);
+  } else if (displaySettings.colorRangeMode == 2u) {
+    // 8-bit full range (0-255) to limited range (16-235)
+    color = vec4f(clamp(color.rgb * (219.0 / 255.0) + vec3f(16.0 / 255.0), vec3f(0.0), vec3f(1.0)), color.a);
+  }
+  return color;
 }
 `;
+
+const COLOR_RANGE_MODE_VALUES = {
+  none: 0,
+  "limited-to-full": 1,
+  "full-to-limited": 2
+};
 
 function waitForVideoData(video) {
   if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
@@ -58,6 +77,7 @@ function waitForVideoData(video) {
 export async function render({
   video,
   canvas,
+  colorRangeMode,
   pipelineBuilder,
   onRuntimeError,
   onInputSample,
@@ -103,12 +123,13 @@ export async function render({
   }
   const pipelines = pipelineBuilder(device, inputTexture);
   const outputTexture = pipelines.at(-1)?.getOutputTexture();
-  if (!outputTexture) throw new Error("Anime4K出力テクスチャを取得できませんでした");
+  if (!outputTexture) throw new Error("フィルター出力テクスチャを取得できませんでした");
 
   const bindGroupLayout = device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
-      { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {} }
+      { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+      { binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } }
     ]
   });
   const renderPipeline = device.createRenderPipeline({
@@ -124,6 +145,14 @@ export async function render({
     },
     primitive: { topology: "triangle-list" }
   });
+  const displaySettingsBuffer = device.createBuffer({
+    label: "YouTube Video Filter display settings",
+    size: 4,
+    usage: GPUBufferUsage.UNIFORM,
+    mappedAtCreation: true
+  });
+  new Uint32Array(displaySettingsBuffer.getMappedRange())[0] = COLOR_RANGE_MODE_VALUES[colorRangeMode] ?? 0;
+  displaySettingsBuffer.unmap();
   const bindGroup = device.createBindGroup({
     layout: bindGroupLayout,
     entries: [
@@ -131,7 +160,8 @@ export async function render({
         binding: 0,
         resource: device.createSampler({ magFilter: "linear", minFilter: "linear" })
       },
-      { binding: 1, resource: outputTexture.createView() }
+      { binding: 1, resource: outputTexture.createView() },
+      { binding: 2, resource: { buffer: displaySettingsBuffer } }
     ]
   });
 
@@ -317,6 +347,7 @@ export async function render({
       stopped = true;
       if (frameRequestId !== undefined) video.cancelVideoFrameCallback(frameRequestId);
       inputTexture.destroy();
+      displaySettingsBuffer.destroy();
     }
   };
 }
