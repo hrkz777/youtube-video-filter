@@ -330,6 +330,15 @@ function createPanel(onChange) {
     diagnosticItem.hidden = !settings.detailedLogging;
   };
   root.showMain = (focus = true) => showPage("main", focus);
+  root.setOpen = (open) => {
+    root.hidden = !open;
+    root.setAttribute("aria-hidden", String(!open));
+    root.style.setProperty("display", open ? "block" : "none", "important");
+    root.style.setProperty("visibility", open ? "visible" : "hidden", "important");
+    root.style.setProperty("opacity", open ? "1" : "0", "important");
+    root.style.setProperty("pointer-events", open ? "auto" : "none", "important");
+  };
+  root.setOpen(false);
   root.addEventListener("pointerdown", (event) => event.stopPropagation());
   return root;
 }
@@ -358,7 +367,7 @@ export function createPlayerSettingsUi({ getSettings, onChange }) {
   let panel = null;
   const close = () => {
     if (!panel || !button) return;
-    panel.hidden = true;
+    panel.setOpen(false);
     panel.showMain(false);
     button.setAttribute("aria-expanded", "false");
   };
@@ -382,12 +391,23 @@ export function createPlayerSettingsUi({ getSettings, onChange }) {
     button.addEventListener("pointerdown", (event) => event.stopPropagation());
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      const opening = panel.hidden;
-      panel.hidden = !opening;
+      const opening = button.getAttribute("aria-expanded") !== "true";
+      panel.setOpen(opening);
       button.setAttribute("aria-expanded", String(opening));
       if (opening) {
         sync();
         panel.showMain();
+        requestAnimationFrame(() => {
+          const bounds = panel.getBoundingClientRect();
+          if (bounds.width === 0 || bounds.height === 0) {
+            console.error("[YouTube Video Filter] 設定パネルの表示領域を確保できませんでした", {
+              display: getComputedStyle(panel).display,
+              visibility: getComputedStyle(panel).visibility,
+              width: bounds.width,
+              height: bounds.height
+            });
+          }
+        });
       }
     });
     // 全画面など右端の主要操作を押しのけないよう、右側ボタン群の先頭へ置く。
