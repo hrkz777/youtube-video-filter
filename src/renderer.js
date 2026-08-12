@@ -55,7 +55,13 @@ function waitForVideoData(video) {
   });
 }
 
-export async function render({ video, canvas, pipelineBuilder, onRuntimeError }) {
+export async function render({
+  video,
+  canvas,
+  pipelineBuilder,
+  onRuntimeError,
+  onInputSample
+}) {
   await waitForVideoData(video);
 
   const adapter = await navigator.gpu.requestAdapter();
@@ -82,6 +88,14 @@ export async function render({ video, canvas, pipelineBuilder, onRuntimeError })
       | GPUTextureUsage.TEXTURE_BINDING
       | GPUTextureUsage.RENDER_ATTACHMENT
   });
+  const bridgeCanvas = new OffscreenCanvas(video.videoWidth, video.videoHeight);
+  const bridgeContext = bridgeCanvas.getContext("2d", {
+    alpha: false,
+    desynchronized: true
+  });
+  if (!bridgeContext) {
+    throw new Error("動画転送用の2D Canvasコンテキストを取得できませんでした");
+  }
   const pipelines = pipelineBuilder(device, inputTexture);
   const outputTexture = pipelines.at(-1)?.getOutputTexture();
   if (!outputTexture) throw new Error("Anime4K出力テクスチャを取得できませんでした");
@@ -117,6 +131,7 @@ export async function render({ video, canvas, pipelineBuilder, onRuntimeError })
   });
 
   let stopped = false;
+  let inputSampleReported = false;
   let frameRequestId;
   let firstFrameSettled = false;
   let resolveFirstFrame;
@@ -147,8 +162,36 @@ export async function render({ video, canvas, pipelineBuilder, onRuntimeError })
     if (stopped || !video.isConnected) return;
 
     try {
+      // HTMLVideoElementからWebGPUへ直接コピーすると、Chrome/ANGLEの動画デコード
+      // 経路によっては検証エラーなしで黒い画素が返る。2D Canvasを中継して
+      // デコーダー固有の内部表現をRGBAへ確実に変換する。
+      bridgeContext.drawImage(
+        video,
+        0,
+        0,
+        video.videoWidth,
+        video.videoHeight
+      );
+      if (!inputSampleReported && onInputSample) {
+        inputSampleReported = true;
+        const samplePoints = [
+          [0.25, 0.25],
+          [0.5, 0.5],
+          [0.75, 0.75]
+        ];
+        const samples = samplePoints.map(([xRatio, yRatio]) => ({
+          position: `${xRatio},${yRatio}`,
+          rgba: Array.from(bridgeContext.getImageData(
+            Math.floor(video.videoWidth * xRatio),
+            Math.floor(video.videoHeight * yRatio),
+            1,
+            1
+          ).data)
+        }));
+        onInputSample(samples);
+      }
       device.queue.copyExternalImageToTexture(
-        { source: video },
+        { source: bridgeCanvas },
         { texture: inputTexture, colorSpace: "srgb" },
         [video.videoWidth, video.videoHeight]
       );
@@ -192,6 +235,7 @@ export async function render({ video, canvas, pipelineBuilder, onRuntimeError })
   return {
     device,
     inputFormat: "rgba8unorm",
+    inputTransfer: "2d-canvas-bridge",
     stop() {
       stopped = true;
       if (frameRequestId !== undefined) video.cancelVideoFrameCallback(frameRequestId);

@@ -390,6 +390,9 @@ async function applyAnime4K(video, profile, diagnosticStage) {
     rendererController = await render({
       video,
       canvas,
+      onInputSample: detailedLogging
+        ? (samples) => diagnostic("2D Canvas中継後の入力画素", samples)
+        : undefined,
       onRuntimeError: (error) => {
         diagnostic("レンダリングループの実行時エラー", {
           name: error?.constructor?.name,
@@ -440,7 +443,10 @@ async function applyAnime4K(video, profile, diagnosticStage) {
       rendererController.stop();
       return;
     }
-    diagnostic("レンダリングループを登録");
+    diagnostic("レンダリングループを登録", {
+      inputFormat: rendererController.inputFormat,
+      inputTransfer: rendererController.inputTransfer
+    });
     if (!renderingDevice) throw new Error("WebGPUデバイスを取得できませんでした");
 
     if (validationScopeActive) {
