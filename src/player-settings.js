@@ -38,6 +38,20 @@ const PLAYER_SETTINGS_CSS = `
     position: relative;
     color: #ddd;
   }
+  @media (hover: hover) and (pointer: fine) {
+    #movie_player .${BUTTON_CLASS} {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 100ms cubic-bezier(0.4, 0, 1, 1);
+    }
+    #movie_player:hover .${BUTTON_CLASS},
+    #movie_player .${BUTTON_CLASS}:focus-visible,
+    #movie_player .${BUTTON_CLASS}[aria-expanded="true"] {
+      opacity: 1;
+      pointer-events: auto;
+      transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
+  }
   .${BUTTON_CLASS}:hover,
   .${BUTTON_CLASS}[aria-expanded="true"] {
     color: #fff;

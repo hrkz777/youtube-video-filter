@@ -61,6 +61,8 @@ assert.match(contentBundle, /cancelActiveProcessing/);
 assert.match(contentBundle, /ytp-youtube-filter-button/);
 assert.match(contentBundle, /ytp-right-controls/);
 assert.match(contentBundle, /controls\.firstElementChild/);
+assert.match(contentBundle, /@media \(hover: hover\) and \(pointer: fine\)/);
+assert.match(contentBundle, /#movie_player:hover/);
 assert.match(contentBundle, /4 2 17 17/);
 assert.match(contentBundle, /aria-haspopup/);
 assert.match(contentBundle, /aria-expanded/);
