@@ -343,14 +343,14 @@ async function applyAnime4K(video, profile, diagnosticStage) {
   let validationScopeActive = false;
   let failed = false;
   let cancelled = false;
-  const originalOpacity = video.style.opacity;
+  const originalVisibility = video.style.visibility;
 
   const cancelProcessing = () => {
     if (cancelled) return;
     cancelled = true;
     rendererController?.stop();
     canvas?.remove();
-    video.style.opacity = originalOpacity;
+    video.style.visibility = originalVisibility;
     video.classList.remove(VIDEO_CLASS);
     if (activeVideo === video) activeVideo = null;
     diagnostic("現在のフィルター処理を停止");
@@ -363,7 +363,7 @@ async function applyAnime4K(video, profile, diagnosticStage) {
     failedSources.set(video, video.currentSrc);
     rendererController?.stop();
     canvas?.remove();
-    video.style.opacity = originalOpacity;
+    video.style.visibility = originalVisibility;
     video.classList.remove(VIDEO_CLASS);
     if (activeVideo === video) activeVideo = null;
     report(`${reason}。元の映像へ戻しました`, error);
@@ -471,7 +471,41 @@ async function applyAnime4K(video, profile, diagnosticStage) {
 
     activeVideo = video;
     video.classList.add(VIDEO_CLASS);
-    video.style.opacity = "0";
+    // opacity: 0ではChrome/ANGLEの動画オーバーレイ面が残り、正常に描画された
+    // WebGPU Canvasを黒く覆う場合がある。visibilityはレイアウトと動画デコードを
+    // 維持しつつ、動画要素を合成対象から外す。
+    video.style.visibility = "hidden";
+    if (detailedLogging) {
+      const canvasStyle = getComputedStyle(canvas);
+      const containerStyle = getComputedStyle(canvas.parentElement);
+      const bounds = canvas.getBoundingClientRect();
+      const centerX = bounds.left + bounds.width / 2;
+      const centerY = bounds.top + bounds.height / 2;
+      diagnostic("CanvasのDOM合成状態", {
+        canvas: {
+          display: canvasStyle.display,
+          visibility: canvasStyle.visibility,
+          opacity: canvasStyle.opacity,
+          zIndex: canvasStyle.zIndex,
+          bounds: `${Math.round(bounds.width)}x${Math.round(bounds.height)}`
+        },
+        container: {
+          display: containerStyle.display,
+          visibility: containerStyle.visibility,
+          opacity: containerStyle.opacity,
+          zIndex: containerStyle.zIndex
+        },
+        stackingOrderAtCenter: document.elementsFromPoint(centerX, centerY)
+          .slice(0, 8)
+          .map((element) => ({
+            tag: element.tagName,
+            id: element.id,
+            className: typeof element.className === "string"
+              ? element.className.slice(0, 160)
+              : ""
+          }))
+      });
+    }
     startFrameDiagnostics(video, canvas);
     const appliedMode = diagnosticStage !== "full"
       ? `診断パス ${DIAGNOSTIC_STAGE_NAMES[diagnosticStage]}`
