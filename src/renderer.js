@@ -60,7 +60,9 @@ export async function render({
   canvas,
   pipelineBuilder,
   onRuntimeError,
-  onInputSample
+  onInputSample,
+  onGpuInputSample,
+  onGpuOutputSample
 }) {
   await waitForVideoData(video);
 
@@ -75,7 +77,8 @@ export async function render({
   context.configure({
     device,
     format: canvasFormat,
-    alphaMode: "opaque"
+    alphaMode: "opaque",
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC
   });
 
   // 動画からfloat16へ直接コピーすると一部のChrome/ANGLE環境で黒くなるため、
@@ -84,14 +87,16 @@ export async function render({
     label: "YouTube video input (rgba8unorm)",
     size: [video.videoWidth, video.videoHeight, 1],
     format: "rgba8unorm",
-    usage: GPUTextureUsage.COPY_DST
+    usage: GPUTextureUsage.COPY_SRC
+      | GPUTextureUsage.COPY_DST
       | GPUTextureUsage.TEXTURE_BINDING
       | GPUTextureUsage.RENDER_ATTACHMENT
   });
   const bridgeCanvas = new OffscreenCanvas(video.videoWidth, video.videoHeight);
   const bridgeContext = bridgeCanvas.getContext("2d", {
     alpha: false,
-    desynchronized: true
+    desynchronized: true,
+    willReadFrequently: Boolean(onInputSample)
   });
   if (!bridgeContext) {
     throw new Error("動画転送用の2D Canvasコンテキストを取得できませんでした");
@@ -132,6 +137,8 @@ export async function render({
 
   let stopped = false;
   let inputSampleReported = false;
+  let gpuInputSampleReported = false;
+  let gpuOutputSampleReported = false;
   let frameRequestId;
   let firstFrameSettled = false;
   let resolveFirstFrame;
@@ -191,22 +198,19 @@ export async function render({
         onInputSample(samples);
       }
       const frameBitmap = bridgeCanvas.transferToImageBitmap();
-      try {
-        device.queue.copyExternalImageToTexture(
-          { source: frameBitmap },
-          { texture: inputTexture, colorSpace: "srgb" },
-          [video.videoWidth, video.videoHeight]
-        );
-      } finally {
-        frameBitmap.close();
-      }
+      device.queue.copyExternalImageToTexture(
+        { source: frameBitmap },
+        { texture: inputTexture, colorSpace: "srgb" },
+        [video.videoWidth, video.videoHeight]
+      );
 
       const encoder = device.createCommandEncoder();
       for (const pipeline of pipelines) pipeline.pass(encoder);
 
+      const presentationTexture = context.getCurrentTexture();
       const renderPass = encoder.beginRenderPass({
         colorAttachments: [{
-          view: context.getCurrentTexture().createView(),
+          view: presentationTexture.createView(),
           clearValue: { r: 0, g: 0, b: 0, a: 1 },
           loadOp: "clear",
           storeOp: "store"
@@ -216,7 +220,75 @@ export async function render({
       renderPass.setBindGroup(0, bindGroup);
       renderPass.draw(6);
       renderPass.end();
+
+      let outputReadbackBuffer;
+      if (!gpuOutputSampleReported && onGpuOutputSample) {
+        gpuOutputSampleReported = true;
+        outputReadbackBuffer = device.createBuffer({
+          size: 256,
+          usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+        });
+        encoder.copyTextureToBuffer(
+          {
+            texture: presentationTexture,
+            origin: {
+              x: Math.floor(canvas.width / 2),
+              y: Math.floor(canvas.height / 2)
+            }
+          },
+          { buffer: outputReadbackBuffer, bytesPerRow: 256 },
+          { width: 1, height: 1 }
+        );
+      }
       device.queue.submit([encoder.finish()]);
+      // Dawnが外部画像コピーを遅延実行する可能性があるため、GPU完了まで
+      // ImageBitmapを生存させる。
+      device.queue.onSubmittedWorkDone().then(
+        () => frameBitmap.close(),
+        () => frameBitmap.close()
+      );
+
+      if (outputReadbackBuffer) {
+        outputReadbackBuffer.mapAsync(GPUMapMode.READ).then(() => {
+          const rgba = Array.from(new Uint8Array(outputReadbackBuffer.getMappedRange(), 0, 4));
+          onGpuOutputSample(rgba);
+          outputReadbackBuffer.unmap();
+          outputReadbackBuffer.destroy();
+        }, (error) => {
+          outputReadbackBuffer.destroy();
+          onRuntimeError?.(error);
+        });
+      }
+
+      if (!gpuInputSampleReported && onGpuInputSample) {
+        gpuInputSampleReported = true;
+        const readbackBuffer = device.createBuffer({
+          size: 256,
+          usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+        });
+        const readbackEncoder = device.createCommandEncoder();
+        readbackEncoder.copyTextureToBuffer(
+          {
+            texture: inputTexture,
+            origin: {
+              x: Math.floor(video.videoWidth / 2),
+              y: Math.floor(video.videoHeight / 2)
+            }
+          },
+          { buffer: readbackBuffer, bytesPerRow: 256 },
+          { width: 1, height: 1 }
+        );
+        device.queue.submit([readbackEncoder.finish()]);
+        readbackBuffer.mapAsync(GPUMapMode.READ).then(() => {
+          const rgba = Array.from(new Uint8Array(readbackBuffer.getMappedRange(), 0, 4));
+          onGpuInputSample(rgba);
+          readbackBuffer.unmap();
+          readbackBuffer.destroy();
+        }, (error) => {
+          readbackBuffer.destroy();
+          onRuntimeError?.(error);
+        });
+      }
 
       if (!firstFrameSettled) {
         device.queue.onSubmittedWorkDone().then(() => {
