@@ -6,6 +6,8 @@ YouTubeの動画へAnime4Kフィルターをリアルタイム適用する、Man
 
 - YouTubeだけで動作
 - Anime4K v4.x Mode AのCNN復元・アップスケールパイプライン
+- Anime4K v4.xのMode A、B、C、A+A、B+Bプリセット
+- Mode Aの出力をMode Cへ直列接続するカスタムA+Cモード
 - Anime4K v4.1 Low resolution experimentの推奨GAN/CNNパイプライン
 - 表示領域に合わせた自動解像度調整（最大4096ピクセル）
 - ポップアップから有効・無効を切り替え可能
@@ -35,6 +37,7 @@ npm run build
 - YouTubeの動画配信元をWebGPUテクスチャとして利用するため、`*.googlevideo.com` のメディアレスポンスにYouTube向けCORSヘッダーを設定します。それ以外のサイトや通信には適用しません。
 - HDR動画、DRM保護された動画、非常に高い解像度では、ブラウザやGPUの制約により適用できない場合があります。
 - v4.1 Low resolution experimentは360p以下の動画だけで有効になります。公式推奨の `Restore GAN UUL → Upscale GAN x4 UUL → Restore CNN Soft M → Upscale CNN x2 M` を使用するため、通常モードより大幅に高いGPU性能とVRAMが必要です。
+- A+AおよびB+Bは2倍以上の拡大を想定した高負荷モードです。A+Cは公式標準プリセットではなく、本拡張機能独自の直列構成です。
 - 公式Anime4Kの安定版リリースはv4.0.1です。公式READMEでv4.1は低解像度向け実験として扱われています。本拡張は本家READMEに掲載されている第三者製WebGPU移植を使用するため、mpv向けGLSLファイルをそのまま実行するものではありません。
 
 ## 出典とライセンス

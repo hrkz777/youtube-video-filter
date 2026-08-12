@@ -9,6 +9,11 @@ const modeNote = document.querySelector("#mode-note");
 const MODE_NOTES = {
   auto: "自動では安定性を優先し、Mode Aを使用します。",
   "mode-a": "一般的な720p・1080pアニメ向けの復元・アップスケールです。",
+  "mode-b": "比較的劣化の少ない720p・1080pアニメ向けです。",
+  "mode-c": "低劣化素材向けで、ノイズを抑えながら拡大します。",
+  "mode-aa": "Mode Aの二段構成です。2倍以上の拡大向けでGPU負荷が高くなります。",
+  "mode-bb": "Mode Bの二段構成です。2倍以上の拡大向けでGPU負荷が高くなります。",
+  "mode-ac": "Mode Aの出力をMode Cへ渡すカスタム構成です。GPU負荷が高くなります。",
   "v4.1-low-resolution": "実験的な360p以下専用モードです。非常に高いGPU性能とVRAMを必要とします。"
 };
 const DIAGNOSTIC_STAGES = new Set(["full", "source", "clamp", "restore"]);

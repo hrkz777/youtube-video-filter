@@ -24,6 +24,10 @@ for (const pipelineName of [
   "CNNSoftM",
   "CNNx2M",
   "ModeA",
+  "ModeB",
+  "ModeC",
+  "ModeAA",
+  "ModeBB",
   "Original",
   "ClampHighlights",
   "CNNVL"
@@ -44,6 +48,9 @@ assert.match(popupDocument, /動作が重くなる可能性があります/);
 assert.match(popupDocument, /id="diagnostic-stage"/);
 assert.match(popupDocument, /A: 入力映像のみ/);
 assert.match(popupDocument, /D: 通常の全処理/);
+for (const profileValue of ["mode-a", "mode-b", "mode-c", "mode-aa", "mode-bb", "mode-ac"]) {
+  assert.match(popupDocument, new RegExp(`value="${profileValue}"`));
+}
 assert.match(popupBundle, /detailedLogging/);
 assert.match(popupBundle, /diagnosticStage/);
 

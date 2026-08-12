@@ -6,6 +6,10 @@ import {
   GANUUL,
   GANx4UUL,
   ModeA,
+  ModeAA,
+  ModeB,
+  ModeBB,
+  ModeC,
   Original
 } from "anime4k-webgpu";
 import { render } from "./renderer.js";
@@ -30,7 +34,26 @@ const DIAGNOSTIC_STAGE_NAMES = {
   clamp: "B: ClampHighlightsまで",
   restore: "C: Restore CNN VLまで"
 };
-const VALID_PROFILES = new Set(["auto", "mode-a", "v4.1-low-resolution"]);
+const VALID_PROFILES = new Set([
+  "auto",
+  "mode-a",
+  "mode-b",
+  "mode-c",
+  "mode-aa",
+  "mode-bb",
+  "mode-ac",
+  "v4.1-low-resolution"
+]);
+const PROFILE_NAMES = {
+  auto: "Mode A（自動）",
+  "mode-a": "Mode A",
+  "mode-b": "Mode B",
+  "mode-c": "Mode C",
+  "mode-aa": "Mode A+A",
+  "mode-bb": "Mode B+B",
+  "mode-ac": "Mode A+C（カスタム）",
+  "v4.1-low-resolution": "v4.1 Low resolution experiment"
+};
 
 function normalizeSettings(settings) {
   return {
@@ -227,6 +250,51 @@ function buildModeA(device, inputTexture, video, canvas) {
   ];
 }
 
+function getPresetDescriptor(device, inputTexture, video, canvas) {
+  return {
+    device,
+    inputTexture,
+    nativeDimensions: {
+      width: video.videoWidth,
+      height: video.videoHeight
+    },
+    targetDimensions: {
+      width: canvas.width,
+      height: canvas.height
+    }
+  };
+}
+
+function buildPreset(profile, device, inputTexture, video, canvas) {
+  const descriptor = getPresetDescriptor(device, inputTexture, video, canvas);
+  switch (profile) {
+    case "mode-b":
+      return [new ModeB(descriptor)];
+    case "mode-c":
+      return [new ModeC(descriptor)];
+    case "mode-aa":
+      return [new ModeAA(descriptor)];
+    case "mode-bb":
+      return [new ModeBB(descriptor)];
+    case "mode-ac": {
+      const modeA = new ModeA(descriptor);
+      const modeAOutput = modeA.getOutputTexture();
+      const modeC = new ModeC({
+        device,
+        inputTexture: modeAOutput,
+        nativeDimensions: {
+          width: modeAOutput.width,
+          height: modeAOutput.height
+        },
+        targetDimensions: descriptor.targetDimensions
+      });
+      return [modeA, modeC];
+    }
+    default:
+      return buildModeA(device, inputTexture, video, canvas);
+  }
+}
+
 function buildLowResolutionExperiment(device, inputTexture) {
   const restoreGan = new GANUUL({ device, inputTexture });
   const upscaleGan = new GANx4UUL({
@@ -351,7 +419,7 @@ async function applyAnime4K(video, profile, diagnosticStage) {
           ? buildDiagnosticPipeline(diagnosticStage, device, inputTexture)
           : profile === "v4.1-low-resolution"
             ? buildLowResolutionExperiment(device, inputTexture)
-            : buildModeA(device, inputTexture, video, canvas);
+            : buildPreset(profile, device, inputTexture, video, canvas);
         diagnostic("パイプラインを構築", {
           profile,
           diagnosticStage: DIAGNOSTIC_STAGE_NAMES[diagnosticStage],
@@ -395,9 +463,7 @@ async function applyAnime4K(video, profile, diagnosticStage) {
     startFrameDiagnostics(video, canvas);
     const appliedMode = diagnosticStage !== "full"
       ? `診断パス ${DIAGNOSTIC_STAGE_NAMES[diagnosticStage]}`
-      : profile === "v4.1-low-resolution"
-        ? "v4.1 Low resolution experiment"
-        : "Mode A";
+      : PROFILE_NAMES[profile];
     report(`Anime4K ${appliedMode}の最初のGPU処理が完了しました (${video.videoWidth}x${video.videoHeight} → ${canvas.width}x${canvas.height})`);
   } catch (error) {
     if (validationScopeActive && renderingDevice) {
