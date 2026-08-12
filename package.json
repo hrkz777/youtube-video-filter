@@ -1,0 +1,17 @@
+{
+  "name": "anime4k-for-youtube",
+  "version": "0.1.0",
+  "private": true,
+  "description": "YouTube専用のAnime4Kリアルタイムアップスケーラー",
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node --check src/content.js && node --check src/renderer.js && node --check src/popup.js && node --check build.mjs && node --check test/validate.mjs",
+    "test": "node test/validate.mjs"
+  },
+  "dependencies": {
+    "anime4k-webgpu": "1.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

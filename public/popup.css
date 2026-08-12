@@ -1,0 +1,92 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  width: 300px;
+  margin: 0;
+  background: #18181b;
+  color: #fafafa;
+}
+
+main {
+  padding: 18px;
+}
+
+h1 {
+  margin: 0 0 18px;
+  font-size: 18px;
+}
+
+.setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.profile {
+  display: grid;
+  gap: 7px;
+  margin-top: 18px;
+  color: #d4d4d8;
+  font-size: 12px;
+}
+
+.profile[hidden] {
+  display: none;
+}
+
+select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #3f3f46;
+  border-radius: 6px;
+  background: #27272a;
+  color: #fafafa;
+}
+
+.setting span {
+  display: grid;
+  gap: 3px;
+}
+
+.secondary-setting {
+  margin-top: 18px;
+}
+
+small,
+.note {
+  color: #a1a1aa;
+}
+
+.warning {
+  margin: 8px 0 0;
+  padding: 8px;
+  border: 1px solid #854d0e;
+  border-radius: 6px;
+  background: #422006;
+  color: #fde68a;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+input {
+  width: 42px;
+  height: 22px;
+  accent-color: #e11d48;
+}
+
+#status {
+  min-height: 18px;
+  margin: 14px 0 0;
+  color: #86efac;
+  font-size: 12px;
+}
+
+.note {
+  margin: 12px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
