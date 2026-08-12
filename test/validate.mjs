@@ -1,0 +1,26 @@
+import assert from "node:assert/strict";
+import { access, readFile, stat } from "node:fs/promises";
+
+const manifest = JSON.parse(await readFile("dist/manifest.json", "utf8"));
+const rules = JSON.parse(await readFile("dist/rules.json", "utf8"));
+const contentBundle = await readFile("dist/content.js", "utf8");
+
+assert.equal(manifest.manifest_version, 3);
+assert.deepEqual(manifest.content_scripts[0].matches, ["https://www.youtube.com/*"]);
+assert.deepEqual(manifest.host_permissions, [
+  "https://www.youtube.com/*",
+  "https://*.googlevideo.com/*"
+]);
+assert.equal(manifest.host_permissions.includes("<all_urls>"), false);
+assert.equal(rules[0].condition.urlFilter, "||googlevideo.com/");
+assert.deepEqual(rules[0].condition.resourceTypes, ["media"]);
+
+for (const pipelineName of ["GANUUL", "GANx4UUL", "CNNSoftM", "CNNx2M", "ModeA"]) {
+  assert.match(contentBundle, new RegExp(`\\b${pipelineName}\\b`));
+}
+
+assert.equal(contentBundle.includes("eval("), false);
+assert.ok((await stat("dist/content.js")).size < 5 * 1024 * 1024);
+await access("dist/THIRD_PARTY_NOTICES.md");
+
+console.log("配布物のManifest、権限、Anime4Kパイプライン、ライセンス通知を検証しました。");

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Anime4K for YouTube</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <h1>Anime4K for YouTube</h1>
+      <label class="setting">
+        <span>
+          <strong>Anime4K</strong>
+          <small>Mode A（自動アップスケール）</small>
+        </span>
+        <input id="enabled" type="checkbox" role="switch">
+      </label>
+      <label class="profile">
+        <span>処理モード</span>
+        <select id="profile">
+          <option value="auto">自動（推奨）</option>
+          <option value="mode-a">v4.x Mode A</option>
+          <option value="v4.1-low-resolution">v4.1 Low resolution experiment</option>
+        </select>
+      </label>
+      <p id="status" aria-live="polite"></p>
+      <p id="mode-note" class="note">自動では安定性を優先し、Mode Aを使用します。</p>
+      <p class="note">設定変更後、YouTubeタブを再読み込みします。WebGPU対応GPUが必要です。</p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Anime4K for YouTube",
+  "version": "0.1.0",
+  "description": "Anime4K v4.1系フィルターでYouTubeのアニメ動画をリアルタイムに高画質化します。",
+  "minimum_chrome_version": "113",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Anime4K for YouTube"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "declarativeNetRequestWithHostAccess"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://*.googlevideo.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "youtube_media_cors",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  }
+}
