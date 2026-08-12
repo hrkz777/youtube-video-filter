@@ -313,9 +313,8 @@ export function createPlayerSettingsUi({ getSettings, onChange }) {
       button.setAttribute("aria-expanded", String(opening));
       if (opening) sync();
     });
-    const candidate = controls.querySelector(".ytp-settings-button");
-    const settingsButton = candidate?.parentElement === controls ? candidate : null;
-    controls.insertBefore(button, settingsButton || null);
+    // 全画面など右端の主要操作を押しのけないよう、右側ボタン群の先頭へ置く。
+    controls.insertBefore(button, controls.firstElementChild);
     player.append(panel);
     sync();
   };

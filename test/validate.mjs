@@ -58,7 +58,7 @@ assert.match(contentBundle, /chrome\.storage\.onChanged/);
 assert.match(contentBundle, /cancelActiveProcessing/);
 assert.match(contentBundle, /ytp-anime4k-button/);
 assert.match(contentBundle, /ytp-right-controls/);
-assert.match(contentBundle, /ytp-settings-button/);
+assert.match(contentBundle, /controls\.firstElementChild/);
 assert.match(contentBundle, /aria-haspopup/);
 assert.match(contentBundle, /aria-expanded/);
 assert.match(popupDocument, /id="detailed-logging"/);
