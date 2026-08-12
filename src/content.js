@@ -198,8 +198,11 @@ function setCanvasSize(canvas, video) {
   const requestedHeight = Math.max(1, Math.round(bounds.height * pixelRatio));
   const scale = Math.min(1, maximumDimension / Math.max(requestedWidth, requestedHeight));
 
-  canvas.width = Math.max(1, Math.round(requestedWidth * scale));
-  canvas.height = Math.max(1, Math.round(requestedHeight * scale));
+  const width = Math.max(1, Math.round(requestedWidth * scale));
+  const height = Math.max(1, Math.round(requestedHeight * scale));
+  // 同じ値の再代入でもCanvasの描画バッファが初期化されるため、実寸変更時だけ更新する。
+  if (canvas.width !== width) canvas.width = width;
+  if (canvas.height !== height) canvas.height = height;
 }
 
 function createCanvas(video) {
@@ -208,9 +211,7 @@ function createCanvas(video) {
   canvas.setAttribute("aria-hidden", "true");
   Object.assign(canvas.style, {
     position: "absolute",
-    inset: "0",
-    width: "100%",
-    height: "100%",
+    inset: "auto",
     objectFit: "contain",
     pointerEvents: "none",
     zIndex: "1"
@@ -224,13 +225,39 @@ function createCanvas(video) {
     container.style.position = "relative";
   }
 
-  setCanvasSize(canvas, video);
+  const syncCanvasLayout = () => {
+    if (!video.isConnected || !canvas.isConnected) return;
+    const videoBounds = video.getBoundingClientRect();
+    const containerBounds = container.getBoundingClientRect();
+    Object.assign(canvas.style, {
+      left: `${videoBounds.left - containerBounds.left}px`,
+      top: `${videoBounds.top - containerBounds.top}px`,
+      width: `${videoBounds.width}px`,
+      height: `${videoBounds.height}px`
+    });
+    setCanvasSize(canvas, video);
+  };
+
   container.append(canvas);
+  syncCanvasLayout();
+  const resizeObserver = new ResizeObserver(syncCanvasLayout);
+  resizeObserver.observe(video);
+  resizeObserver.observe(container);
+  window.addEventListener("resize", syncCanvasLayout);
+  document.addEventListener("fullscreenchange", syncCanvasLayout);
+
   diagnostic("Canvasを作成", {
     backingSize: `${canvas.width}x${canvas.height}`,
     cssSize: `${Math.round(video.getBoundingClientRect().width)}x${Math.round(video.getBoundingClientRect().height)}`
   });
-  return canvas;
+  return {
+    canvas,
+    stopLayoutSync() {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", syncCanvasLayout);
+      document.removeEventListener("fullscreenchange", syncCanvasLayout);
+    }
+  };
 }
 
 function buildModeA(device, inputTexture, video, canvas) {
@@ -338,6 +365,7 @@ async function applyAnime4K(video, profile, diagnosticStage) {
 
   initializationInProgress = true;
   let canvas;
+  let stopCanvasLayoutSync;
   let renderingDevice;
   let rendererController;
   let validationScopeActive = false;
@@ -349,6 +377,7 @@ async function applyAnime4K(video, profile, diagnosticStage) {
     if (cancelled) return;
     cancelled = true;
     rendererController?.stop();
+    stopCanvasLayoutSync?.();
     canvas?.remove();
     video.style.visibility = originalVisibility;
     video.classList.remove(VIDEO_CLASS);
@@ -362,6 +391,7 @@ async function applyAnime4K(video, profile, diagnosticStage) {
     failed = true;
     failedSources.set(video, video.currentSrc);
     rendererController?.stop();
+    stopCanvasLayoutSync?.();
     canvas?.remove();
     video.style.visibility = originalVisibility;
     video.classList.remove(VIDEO_CLASS);
@@ -385,7 +415,7 @@ async function applyAnime4K(video, profile, diagnosticStage) {
       return;
     }
 
-    canvas = createCanvas(video);
+    ({ canvas, stopLayoutSync: stopCanvasLayoutSync } = createCanvas(video));
 
     rendererController = await render({
       video,

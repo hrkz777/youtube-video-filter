@@ -52,6 +52,8 @@ assert.match(contentBundle, /onGpuInputSample/);
 assert.match(contentBundle, /onGpuOutputSample/);
 assert.match(contentBundle, /visibility\s*=\s*["']hidden["']/);
 assert.match(contentBundle, /elementsFromPoint/);
+assert.match(contentBundle, /ResizeObserver/);
+assert.match(contentBundle, /videoBounds\.height/);
 assert.match(contentBundle, /chrome\.storage\.onChanged/);
 assert.match(contentBundle, /cancelActiveProcessing/);
 assert.match(popupDocument, /id="detailed-logging"/);
