@@ -41,6 +41,7 @@ assert.match(contentBundle, /device\.lost/);
 assert.match(contentBundle, /onSubmittedWorkDone/);
 assert.match(contentBundle, /YouTube video input \(rgba8unorm\)/);
 assert.match(contentBundle, /copyExternalImageToTexture/);
+assert.match(contentBundle, /GPUTextureUsage\.RENDER_ATTACHMENT/);
 assert.match(contentBundle, /chrome\.storage\.onChanged/);
 assert.match(contentBundle, /cancelActiveProcessing/);
 assert.match(popupDocument, /id="detailed-logging"/);

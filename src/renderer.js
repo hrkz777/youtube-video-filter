@@ -78,7 +78,9 @@ export async function render({ video, canvas, pipelineBuilder, onRuntimeError })
     label: "YouTube video input (rgba8unorm)",
     size: [video.videoWidth, video.videoHeight, 1],
     format: "rgba8unorm",
-    usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING
+    usage: GPUTextureUsage.COPY_DST
+      | GPUTextureUsage.TEXTURE_BINDING
+      | GPUTextureUsage.RENDER_ATTACHMENT
   });
   const pipelines = pipelineBuilder(device, inputTexture);
   const outputTexture = pipelines.at(-1)?.getOutputTexture();
