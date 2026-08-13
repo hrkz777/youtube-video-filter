@@ -17,6 +17,7 @@ import { createPlayerSettingsUi } from "./player-settings.js";
 
 const CANVAS_CLASS = "youtube-filter-canvas";
 const VIDEO_CLASS = "youtube-filter-source";
+const FILTER_RESIZE_DEBOUNCE_MILLISECONDS = 300;
 let activeVideo = null;
 let activeVideoSource = "";
 let initializationInProgress = false;
@@ -242,7 +243,7 @@ function waitForVideoMetadata(video) {
   });
 }
 
-function setCanvasSize(canvas, video) {
+function getCanvasSize(video) {
   const bounds = video.getBoundingClientRect();
   const maximumDimension = 4096;
   const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
@@ -252,12 +253,16 @@ function setCanvasSize(canvas, video) {
 
   const width = Math.max(1, Math.round(requestedWidth * scale));
   const height = Math.max(1, Math.round(requestedHeight * scale));
-  // 同じ値の再代入でもCanvasの描画バッファが初期化されるため、実寸変更時だけ更新する。
-  if (canvas.width !== width) canvas.width = width;
-  if (canvas.height !== height) canvas.height = height;
+  return { width, height };
 }
 
-function createCanvas(video) {
+function setCanvasSize(canvas, size) {
+  // 同じ値の再代入でもCanvasの描画バッファが初期化されるため、実寸変更時だけ更新する。
+  if (canvas.width !== size.width) canvas.width = size.width;
+  if (canvas.height !== size.height) canvas.height = size.height;
+}
+
+function createCanvas(video, onTargetSizeChange) {
   const canvas = document.createElement("canvas");
   canvas.className = CANVAS_CLASS;
   canvas.setAttribute("aria-hidden", "true");
@@ -277,6 +282,7 @@ function createCanvas(video) {
     container.style.position = "relative";
   }
 
+  let targetSize;
   const syncCanvasLayout = () => {
     if (!video.isConnected || !canvas.isConnected) return;
     const videoBounds = video.getBoundingClientRect();
@@ -287,7 +293,17 @@ function createCanvas(video) {
       width: `${videoBounds.width}px`,
       height: `${videoBounds.height}px`
     });
-    setCanvasSize(canvas, video);
+    const nextTargetSize = getCanvasSize(video);
+    if (!targetSize) {
+      targetSize = nextTargetSize;
+      setCanvasSize(canvas, targetSize);
+      return;
+    }
+    if (nextTargetSize.width === targetSize.width && nextTargetSize.height === targetSize.height) return;
+    targetSize = nextTargetSize;
+    // 稼働中のWebGPU Canvasをリサイズすると取得済みのpresentation textureが
+    // 無効になり得るため、CSSだけ追従させ、描画バッファは再初期化時に更新する。
+    onTargetSizeChange?.(targetSize);
   };
 
   container.append(canvas);
@@ -432,7 +448,41 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
   let cancelled = false;
   let sourceAtInitialization = "";
   let lastDetailedStatisticsFrame = 0;
+  let resizeRestartTimeoutId;
+  let renderTargetSize;
+  let latestTargetSize;
   const originalVisibility = video.style.visibility;
+  const clearScheduledResizeRestart = () => {
+    if (resizeRestartTimeoutId === undefined) return;
+    clearTimeout(resizeRestartTimeoutId);
+    resizeRestartTimeoutId = undefined;
+  };
+  const scheduleResizeRestart = (targetSize) => {
+    latestTargetSize = targetSize;
+    clearScheduledResizeRestart();
+    if (targetSize.width <= 1 || targetSize.height <= 1
+      || cancelled || failed || activeVideo !== video || !renderTargetSize
+      || (targetSize.width === renderTargetSize.width && targetSize.height === renderTargetSize.height)) {
+      return;
+    }
+    resizeRestartTimeoutId = setTimeout(() => {
+      resizeRestartTimeoutId = undefined;
+      if (cancelled || failed || activeVideo !== video) return;
+      const currentTargetSize = getCanvasSize(video);
+      if (currentTargetSize.width <= 1 || currentTargetSize.height <= 1
+        || (currentTargetSize.width === renderTargetSize.width
+        && currentTargetSize.height === renderTargetSize.height)) {
+        return;
+      }
+      diagnostic("表示サイズの変更に合わせてフィルターを再初期化", {
+        previousOutputSize: `${renderTargetSize.width}x${renderTargetSize.height}`,
+        nextOutputSize: `${currentTargetSize.width}x${currentTargetSize.height}`
+      });
+      updateStatistics({ status: "初期化中" });
+      cancelProcessing();
+      queueMicrotask(findYouTubeVideo);
+    }, FILTER_RESIZE_DEBOUNCE_MILLISECONDS);
+  };
   const handlePlaybackStateChange = () => {
     if (cancelled || failed) return;
     updateStatistics({
@@ -454,6 +504,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
   const cancelProcessing = () => {
     if (cancelled) return;
     cancelled = true;
+    clearScheduledResizeRestart();
     stopWatchingSource();
     rendererController?.stop();
     stopCanvasLayoutSync?.();
@@ -484,6 +535,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
   const restoreOriginalVideo = (reason, error) => {
     if (failed) return;
     failed = true;
+    clearScheduledResizeRestart();
     stopWatchingSource();
     failedSources.set(video, video.currentSrc);
     rendererController?.stop();
@@ -525,7 +577,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
     video.addEventListener("pause", handlePlaybackStateChange);
     video.addEventListener("playing", handlePlaybackStateChange);
 
-    ({ canvas, stopLayoutSync: stopCanvasLayoutSync } = createCanvas(video));
+    ({ canvas, stopLayoutSync: stopCanvasLayoutSync } = createCanvas(video, scheduleResizeRestart));
     updateStatistics({
       inputWidth: video.videoWidth,
       inputHeight: video.videoHeight,
@@ -567,6 +619,11 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
       },
       pipelineBuilder: (device, inputTexture) => {
         renderingDevice = device;
+        renderTargetSize = { width: canvas.width, height: canvas.height };
+        updateStatistics({
+          outputWidth: renderTargetSize.width,
+          outputHeight: renderTargetSize.height
+        });
         diagnostic("WebGPUデバイスを取得", getDeviceDetails(device));
 
         device.addEventListener("uncapturederror", (event) => {
@@ -635,6 +692,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
     activeVideo = video;
     activeVideoSource = sourceAtInitialization;
     updateStatistics({ status: video.paused ? "一時停止中" : "適用中" });
+    scheduleResizeRestart(latestTargetSize ?? getCanvasSize(video));
     video.classList.add(VIDEO_CLASS);
     // opacity: 0ではChrome/ANGLEの動画オーバーレイ面が残り、正常に描画された
     // WebGPU Canvasを黒く覆う場合がある。visibilityはレイアウトと動画デコードを
