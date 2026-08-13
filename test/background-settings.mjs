@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
-import { readFile } from "node:fs/promises";
+import { build } from "esbuild";
 
-const source = await readFile("src/background.js", "utf8");
+const buildResult = await build({
+  entryPoints: ["src/background.js"],
+  bundle: true,
+  format: "iife",
+  platform: "browser",
+  target: "chrome113",
+  write: false
+});
+const source = buildResult.outputFiles[0].text;
 const localSettings = {
   enabled: true,
   profile: "auto",
@@ -99,6 +107,16 @@ assert.deepEqual(multipleOverrides, {
   overriddenKeys: ["enabled", "profile"]
 });
 
+const invalidUpdate = await sendMessage("youtube-video-filter:set-tab-settings", 1, {
+  enabled: true,
+  profile: "invalid-profile"
+});
+assert.match(invalidUpdate.error, /不正な設定値です: profile/);
+assert.deepEqual(sessionSettings.get("tab-settings:1"), {
+  values: multipleOverrides.settings,
+  overriddenKeys: multipleOverrides.overriddenKeys
+});
+
 localSettings.enabled = false;
 localSettings.profile = "mode-c";
 localSettings.colorRangeMode = "limited-to-full";
@@ -159,6 +177,27 @@ assert.deepEqual(migrated, {
 assert.deepEqual(sessionSettings.get("tab-settings:3"), {
   values: migrated.settings,
   overriddenKeys: []
+});
+
+sessionSettings.set("tab-settings:4", {
+  values: {
+    enabled: true,
+    profile: "invalid-profile",
+    colorRangeMode: "none"
+  },
+  overriddenKeys: ["profile", "colorRangeMode"]
+});
+const sanitized = await sendMessage("youtube-video-filter:get-tab-settings", 4);
+assert.deepEqual(sanitized, {
+  settings: {
+    enabled: true,
+    colorRangeMode: "none"
+  },
+  overriddenKeys: ["colorRangeMode"]
+});
+assert.deepEqual(sessionSettings.get("tab-settings:4"), {
+  values: sanitized.settings,
+  overriddenKeys: sanitized.overriddenKeys
 });
 
 tabRemovedListener(2);
