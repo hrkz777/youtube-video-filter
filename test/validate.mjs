@@ -74,6 +74,8 @@ assert.match(playerSettingsSource, /統計情報/);
 assert.match(playerSettingsSource, /デフォルトへ戻す/);
 assert.match(playerSettingsSource, /__session-badge/);
 assert.match(playerSettingsSource, /このタブ用設定/);
+assert.match(playerSettingsSource, /function createSelectionIndicator\(\)/);
+assert.match(playerSettingsSource, /YouTube標準CSSがaria-checkedに応じて描画する/);
 assert.match(playerSettingsSource, /入力FPS/);
 assert.match(playerSettingsSource, /出力FPS/);
 assert.match(playerSettingsSource, /破棄率/);

@@ -160,6 +160,13 @@ function createMenuIcon(pathData) {
   return icon;
 }
 
+function createSelectionIndicator() {
+  const icon = document.createElement("div");
+  icon.className = "ytp-menuitem-icon";
+  // 選択マークはYouTube標準CSSがaria-checkedに応じて描画する。
+  return icon;
+}
+
 function createMenuLabel(title) {
   const label = document.createElement("div");
   label.className = "ytp-menuitem-label";
@@ -378,7 +385,7 @@ function createPanel(onChange, onReset) {
       option.setAttribute("aria-label", label);
       option.tabIndex = 0;
       option.append(
-        createMenuIcon("m9.2 16.2-4.4-4.4L3.4 13.2 9.2 19 21 7.2l-1.4-1.4-10.4 10.4Z"),
+        createSelectionIndicator(),
         createMenuLabel(label),
         Object.assign(document.createElement("div"), { className: "ytp-menuitem-content" })
       );
