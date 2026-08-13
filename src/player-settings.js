@@ -1,4 +1,10 @@
 import { persistOptimisticSetting } from "./optimistic-setting.js";
+import {
+  ANIME4K_OFF_VALUE,
+  getAnime4kChanges,
+  getAnime4kSelection,
+  isAnime4kOverridden
+} from "./anime4k-setting.js";
 
 const BUTTON_CLASS = "ytp-youtube-filter-button";
 const PANEL_CLASS = "ytp-youtube-filter-settings";
@@ -6,7 +12,8 @@ const OPEN_CLASS = "ytp-youtube-filter-settings-open";
 const STYLE_ID = "youtube-video-filter-player-settings-style";
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
-const PROFILES = [
+const ANIME4K_MODES = [
+  [ANIME4K_OFF_VALUE, "オフ"],
   ["auto", "自動（推奨）"],
   ["mode-a", "v4.x Mode A"],
   ["mode-b", "v4.x Mode B"],
@@ -24,7 +31,7 @@ const COLOR_RANGE_MODES = [
 ];
 
 const SUBMENUS = {
-  profile: { title: "処理モード", options: PROFILES },
+  anime4k: { title: "Anime4K", options: ANIME4K_MODES },
   colorRangeMode: { title: "カラーレンジ", options: COLOR_RANGE_MODES }
 };
 
@@ -190,32 +197,6 @@ function createSessionBadge() {
   return badge;
 }
 
-function createToggleItem(setting, title, iconPath, saveChange) {
-  const item = document.createElement("div");
-  item.className = "ytp-menuitem";
-  item.dataset.toggleSetting = setting;
-  item.dataset.settingTitle = title;
-  item.setAttribute("role", "menuitemcheckbox");
-  item.setAttribute("aria-checked", "false");
-  item.setAttribute("aria-label", title);
-  item.tabIndex = 0;
-  const content = document.createElement("div");
-  content.className = "ytp-menuitem-content";
-  const toggle = document.createElement("div");
-  toggle.className = "ytp-menuitem-toggle-checkbox";
-  content.append(toggle);
-  const label = createMenuLabel(title);
-  label.append(createSessionBadge());
-  item.append(createMenuIcon(iconPath), label, content);
-  makeInteractive(item, () => {
-    const checked = item.getAttribute("aria-checked") !== "true";
-    item.setAttribute("aria-checked", String(checked));
-    const changes = { [setting]: checked };
-    saveChange(changes);
-  });
-  return item;
-}
-
 function createSubmenuItem(setting, title, iconPath, showSubmenu) {
   const item = document.createElement("div");
   item.className = "ytp-menuitem";
@@ -367,19 +348,18 @@ function createPanel(onChange, onReset, getSettings, getOverriddenKeys) {
   const mainMenu = document.createElement("div");
   mainMenu.className = "ytp-panel-menu";
   mainMenu.setAttribute("role", "menu");
-  const anime4kItem = createToggleItem(
-    "enabled",
+  const anime4kItem = createSubmenuItem(
+    "anime4k",
     "Anime4K",
     "M4 5h10v2H6v10h12v-5h2v7H4V5Zm14-3 .8 2.2L21 5l-2.2.8L18 8l-.8-2.2L15 5l2.2-.8L18 2Z",
-    saveChange
+    showPage
   );
-  const profileItem = createSubmenuItem("profile", "処理モード", "M3 17v2h6v-2H3Zm0-6v2h12v-2H3Zm0-6v2h18V5H3Z", showPage);
   const colorItem = createSubmenuItem("colorRangeMode", "カラーレンジ", "M12 3a9 9 0 1 0 0 18V3Zm0 2v14a7 7 0 0 1 0-14Z", showPage);
   const resetItem = createResetItem(onReset, (message) => {
     root.syncSettings(getSettings(), getOverriddenKeys());
     root.showError(message);
   });
-  mainMenu.append(anime4kItem, profileItem, colorItem, resetItem);
+  mainMenu.append(anime4kItem, colorItem, resetItem);
   const saveErrorItem = document.createElement("div");
   saveErrorItem.className = `ytp-menuitem ${PANEL_CLASS}__save-error`;
   saveErrorItem.setAttribute("role", "alert");
@@ -418,7 +398,9 @@ function createPanel(onChange, onReset, getSettings, getOverriddenKeys) {
       option.append(createMenuLabel(label));
       makeInteractive(option, () => {
         root.setSetting(setting, value);
-        saveChange({ [setting]: value });
+        saveChange(setting === "anime4k"
+          ? getAnime4kChanges(value)
+          : { [setting]: value });
         showPage("main");
       });
       menu.append(option);
@@ -457,14 +439,14 @@ function createPanel(onChange, onReset, getSettings, getOverriddenKeys) {
     }
   };
   root.syncSettings = (settings, overriddenKeys = []) => {
-    for (const item of root.querySelectorAll("[data-toggle-setting]")) {
-      item.setAttribute("aria-checked", String(Boolean(settings[item.dataset.toggleSetting])));
-    }
-    for (const setting of Object.keys(SUBMENUS)) root.setSetting(setting, settings[setting]);
+    root.setSetting("anime4k", getAnime4kSelection(settings));
+    root.setSetting("colorRangeMode", settings.colorRangeMode);
     const overridden = new Set(overriddenKeys);
     for (const item of root.querySelectorAll("[data-setting-title]")) {
-      const setting = item.dataset.toggleSetting ?? item.dataset.submenuItem;
-      const isOverridden = overridden.has(setting);
+      const setting = item.dataset.submenuItem;
+      const isOverridden = setting === "anime4k"
+        ? isAnime4kOverridden(overriddenKeys)
+        : overridden.has(setting);
       const badge = item.querySelector(`.${PANEL_CLASS}__session-badge`);
       if (badge) badge.hidden = !isOverridden;
       item.setAttribute("aria-label", isOverridden

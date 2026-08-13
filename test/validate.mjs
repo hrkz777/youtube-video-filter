@@ -15,6 +15,7 @@ const filterFailureSource = await readFile("src/filter-failure.js", "utf8");
 const rendererSource = await readFile("src/renderer.js", "utf8");
 const playerSettingsSource = await readFile("src/player-settings.js", "utf8");
 const optimisticSettingSource = await readFile("src/optimistic-setting.js", "utf8");
+const popupSource = await readFile("src/popup.js", "utf8");
 
 {
   const failures = [];
@@ -104,6 +105,10 @@ assert.match(playerSettingsSource, /統計情報/);
 assert.match(playerSettingsSource, /デフォルトへ戻す/);
 assert.match(playerSettingsSource, /__session-badge/);
 assert.match(playerSettingsSource, /このタブ用設定/);
+assert.doesNotMatch(playerSettingsSource, /createToggleItem/);
+assert.match(playerSettingsSource, /getAnime4kSelection\(settings\)/);
+assert.match(playerSettingsSource, /getAnime4kChanges\(value\)/);
+assert.match(playerSettingsSource, /isAnime4kOverridden\(overriddenKeys\)/);
 assert.match(playerSettingsSource, /root\.syncSettings\(getSettings\(\), getOverriddenKeys\(\)\)/);
 assert.match(playerSettingsSource, /root\.showError\("設定を保存できませんでした"\)/);
 assert.match(playerSettingsSource, /showError\("デフォルト設定へ戻せませんでした"\)/);
@@ -218,7 +223,7 @@ assert.match(contentBundle, /removeProperty\(["']height["']\)/);
 assert.match(contentBundle, /headerHeight \+ menuHeight/);
 assert.match(contentBundle, /activePanel\.style\.setProperty\([^\n]+height/);
 assert.match(contentBundle, /ytp-popup-content/);
-assert.match(contentBundle, /ytp-menuitem-toggle-checkbox/);
+assert.doesNotMatch(playerSettingsSource, /ytp-menuitem-toggle-checkbox/);
 assert.doesNotMatch(contentBundle, /\\u8A73\\u7D30\\u30ED\\u30B0\\uFF08\\u52D5\\u4F5C/);
 assert.match(contentBundle, /ytp-focus-trap-before/);
 assert.match(contentBundle, /ytp-focus-trap-after/);
@@ -227,6 +232,10 @@ assert.match(contentBundle, /full-to-limited/);
 assert.match(contentBundle, /255\.0\s*\/\s*219\.0/);
 assert.match(contentBundle, /219\.0\s*\/\s*255\.0/);
 assert.match(popupDocument, /id="color-range-mode"/);
+assert.match(popupDocument, /id="anime4k-mode"/);
+assert.match(popupDocument, /value="off">オフ/);
+assert.doesNotMatch(popupDocument, /id="enabled"/);
+assert.doesNotMatch(popupDocument, /Anime4Kを有効にする/);
 assert.match(popupDocument, /リミテッド → フル/);
 assert.match(popupDocument, /フル → リミテッド/);
 assert.match(popupDocument, /id="detailed-logging"/);
@@ -244,6 +253,8 @@ for (const profileValue of ["mode-a", "mode-b", "mode-c", "mode-aa", "mode-bb", 
 }
 assert.match(popupBundle, /detailedLogging/);
 assert.match(popupBundle, /diagnosticStage/);
+assert.match(popupBundle, /preservedProfile/);
+assert.match(popupSource, /Anime4Kは適用しません/);
 assert.doesNotMatch(popupBundle, /chrome\.tabs\.query/);
 assert.doesNotMatch(popupBundle, /chrome\.runtime\.sendMessage/);
 assert.match(popupBundle, /\\u8A2D\\u5B9A\\u3092\\u4FDD\\u5B58\\u3057\\u307E\\u3057\\u305F/);
