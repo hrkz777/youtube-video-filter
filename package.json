@@ -6,8 +6,8 @@
   "description": "YouTube専用のAnime4Kアップスケーラー兼カラーレンジ変換フィルター",
   "scripts": {
     "build": "node build.mjs",
-    "check": "node --check src/anime4k-setting.js && node --check src/background.js && node --check src/content.js && node --check src/filter-failure.js && node --check src/gpu-resources.js && node --check src/settings-update.js && node --check src/renderer.js && node --check src/player-settings.js && node --check src/popup.js && node --check build.mjs && node --check test/anime4k-setting.mjs && node --check test/background-settings.mjs && node --check test/filter-failure.mjs && node --check test/gpu-resources.mjs && node --check test/renderer-lifecycle.mjs && node --check test/settings-update.mjs && node --check test/validate.mjs",
-    "test": "node test/anime4k-setting.mjs && node test/background-settings.mjs && node test/filter-failure.mjs && node test/gpu-resources.mjs && node test/renderer-lifecycle.mjs && node test/settings-update.mjs && node test/validate.mjs"
+    "check": "node --check src/anime4k-setting.js && node --check src/background.js && node --check src/content.js && node --check src/filter-failure.js && node --check src/gpu-resources.js && node --check src/resize-policy.js && node --check src/settings-update.js && node --check src/renderer.js && node --check src/player-settings.js && node --check src/popup.js && node --check build.mjs && node --check test/anime4k-setting.mjs && node --check test/background-settings.mjs && node --check test/filter-failure.mjs && node --check test/gpu-resources.mjs && node --check test/renderer-lifecycle.mjs && node --check test/resize-policy.mjs && node --check test/settings-update.mjs && node --check test/validate.mjs",
+    "test": "node test/anime4k-setting.mjs && node test/background-settings.mjs && node test/filter-failure.mjs && node test/gpu-resources.mjs && node test/renderer-lifecycle.mjs && node test/resize-policy.mjs && node test/settings-update.mjs && node test/validate.mjs"
   },
   "dependencies": {
     "anime4k-webgpu": "1.0.0"
