@@ -159,6 +159,7 @@ assert.match(backgroundBundle, /youtube-video-filter:set-tab-settings/);
 assert.match(backgroundBundle, /youtube-video-filter:reset-tab-settings/);
 assert.match(backgroundBundle, /overriddenKeys/);
 assert.match(backgroundBundle, /normalizeSessionRecord/);
+assert.match(backgroundBundle, /runTabOperation/);
 assert.match(backgroundBundle, /chrome\.storage\.session/);
 assert.match(backgroundBundle, /chrome\.storage\.local\.get\(TAB_SETTINGS_DEFAULTS\)/);
 assert.match(backgroundBundle, /validateSettingChanges\(message\.settings, TAB_SETTING_KEYS\)/);
