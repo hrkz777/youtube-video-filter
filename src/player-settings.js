@@ -1,5 +1,6 @@
 const BUTTON_CLASS = "ytp-youtube-filter-button";
 const PANEL_CLASS = "ytp-youtube-filter-settings";
+const OPEN_CLASS = "ytp-youtube-filter-settings-open";
 const STYLE_ID = "youtube-video-filter-player-settings-style";
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
@@ -38,19 +39,14 @@ const PLAYER_SETTINGS_CSS = `
     position: relative;
     color: #ddd;
   }
-  @media (hover: hover) and (pointer: fine) {
-    #movie_player .${BUTTON_CLASS} {
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 100ms cubic-bezier(0.4, 0, 1, 1);
-    }
-    #movie_player:hover .${BUTTON_CLASS},
-    #movie_player .${BUTTON_CLASS}:focus-visible,
-    #movie_player .${BUTTON_CLASS}[aria-expanded="true"] {
-      opacity: 1;
-      pointer-events: auto;
-      transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
-    }
+  #movie_player.${OPEN_CLASS} .ytp-chrome-bottom {
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+  #movie_player.${OPEN_CLASS} .ytp-gradient-bottom {
+    visibility: visible !important;
+    opacity: 1 !important;
   }
   .${BUTTON_CLASS}:hover,
   .${BUTTON_CLASS}[aria-expanded="true"] {
@@ -384,7 +380,9 @@ export function createPlayerSettingsUi({ getSettings, onChange }) {
   }
   let button = null;
   let panel = null;
+  let mountedPlayer = null;
   const close = () => {
+    mountedPlayer?.classList.remove(OPEN_CLASS);
     if (!panel || !button) return;
     panel.setOpen(false);
     panel.showMain(false);
@@ -403,14 +401,17 @@ export function createPlayerSettingsUi({ getSettings, onChange }) {
     const controls = player?.querySelector(".ytp-right-controls");
     if (!player || !controls) return;
     if (button?.isConnected && panel?.isConnected && panel.parentElement === player) return;
+    mountedPlayer?.classList.remove(OPEN_CLASS);
     button?.remove();
     panel?.remove();
+    mountedPlayer = player;
     button = createButton();
     panel = createPanel(onChange);
     button.addEventListener("pointerdown", (event) => event.stopPropagation());
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       const opening = button.getAttribute("aria-expanded") !== "true";
+      player.classList.toggle(OPEN_CLASS, opening);
       panel.setOpen(opening);
       button.setAttribute("aria-expanded", String(opening));
       if (opening) {
