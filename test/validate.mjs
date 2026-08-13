@@ -83,7 +83,7 @@ assert.match(contentBundle, /headerHeight \+ menuHeight/);
 assert.match(contentBundle, /activePanel\.style\.setProperty\([^\n]+height/);
 assert.match(contentBundle, /ytp-popup-content/);
 assert.match(contentBundle, /ytp-menuitem-toggle-checkbox/);
-assert.match(contentBundle, /\\u8A73\\u7D30\\u30ED\\u30B0.*\\u91CD/);
+assert.doesNotMatch(contentBundle, /\\u8A73\\u7D30\\u30ED\\u30B0\\uFF08\\u52D5\\u4F5C/);
 assert.match(contentBundle, /ytp-focus-trap-before/);
 assert.match(contentBundle, /ytp-focus-trap-after/);
 assert.match(contentBundle, /limited-to-full/);

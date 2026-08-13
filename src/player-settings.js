@@ -21,17 +21,9 @@ const COLOR_RANGE_MODES = [
   ["full-to-limited", "フル → リミテッド"]
 ];
 
-const DIAGNOSTIC_STAGES = [
-  ["full", "D: 通常の全処理"],
-  ["source", "A: 入力映像のみ"],
-  ["clamp", "B: ClampHighlightsまで"],
-  ["restore", "C: Restore CNN VLまで"]
-];
-
 const SUBMENUS = {
   profile: { title: "処理モード", options: PROFILES },
-  colorRangeMode: { title: "カラーレンジ", options: COLOR_RANGE_MODES },
-  diagnosticStage: { title: "診断パス", options: DIAGNOSTIC_STAGES }
+  colorRangeMode: { title: "カラーレンジ", options: COLOR_RANGE_MODES }
 };
 
 const PLAYER_SETTINGS_CSS = `
@@ -163,7 +155,6 @@ function createToggleItem(setting, title, iconPath, saveChange) {
     const checked = item.getAttribute("aria-checked") !== "true";
     item.setAttribute("aria-checked", String(checked));
     const changes = { [setting]: checked };
-    if (setting === "detailedLogging" && !checked) changes.diagnosticStage = "full";
     saveChange(changes);
   });
   return item;
@@ -276,15 +267,7 @@ function createPanel(onChange) {
   );
   const profileItem = createSubmenuItem("profile", "処理モード", "M3 17v2h6v-2H3Zm0-6v2h12v-2H3Zm0-6v2h18V5H3Z", showPage);
   const colorItem = createSubmenuItem("colorRangeMode", "カラーレンジ", "M12 3a9 9 0 1 0 0 18V3Zm0 2v14a7 7 0 0 1 0-14Z", showPage);
-  const loggingItem = createToggleItem(
-    "detailedLogging",
-    "詳細ログ（動作が重くなる可能性あり）",
-    "M11 17h2v-6h-2v6Zm0-8h2V7h-2v2Zm1-6a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 16a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z",
-    saveChange
-  );
-  const diagnosticItem = createSubmenuItem("diagnosticStage", "診断パス", "M4 4h16v2H4V4Zm0 7h16v2H4v-2Zm0 7h10v2H4v-2Z", showPage);
-  diagnosticItem.dataset.diagnosticRow = "true";
-  mainMenu.append(anime4kItem, profileItem, colorItem, loggingItem, diagnosticItem);
+  mainMenu.append(anime4kItem, profileItem, colorItem);
   mainPanel.append(mainMenu);
   pages.set("main", mainPanel);
   popupContent.append(mainPanel);
@@ -337,7 +320,6 @@ function createPanel(onChange) {
       item.setAttribute("aria-checked", String(Boolean(settings[item.dataset.toggleSetting])));
     }
     for (const setting of Object.keys(SUBMENUS)) root.setSetting(setting, settings[setting]);
-    diagnosticItem.hidden = !settings.detailedLogging;
     updateLayout();
   };
   root.showMain = (focus = true) => showPage("main", focus);
