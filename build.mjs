@@ -5,6 +5,7 @@ const outputDirectory = "dist";
 
 await rm(outputDirectory, { recursive: true, force: true });
 await mkdir(outputDirectory, { recursive: true });
+await mkdir(`${outputDirectory}/design`, { recursive: true });
 
 await build({
   entryPoints: ["src/content.js", "src/popup.js"],
@@ -22,5 +23,6 @@ await Promise.all([
   cp("public/popup.html", `${outputDirectory}/popup.html`),
   cp("public/popup.css", `${outputDirectory}/popup.css`),
   cp("public/rules.json", `${outputDirectory}/rules.json`),
+  cp("design/icon.png", `${outputDirectory}/design/icon.png`),
   cp("THIRD_PARTY_NOTICES.md", `${outputDirectory}/THIRD_PARTY_NOTICES.md`)
 ]);

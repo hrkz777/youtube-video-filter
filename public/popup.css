@@ -1,92 +1,99 @@
-:root {
-  color-scheme: dark;
-  font-family: system-ui, sans-serif;
-}
-
 body {
-  width: 300px;
+  min-width: 250px;
   margin: 0;
-  background: #18181b;
-  color: #fafafa;
+  padding: 10px;
+  font-family: sans-serif;
 }
 
-main {
-  padding: 18px;
+h3 {
+  margin-top: 0;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #ccc;
 }
 
-h1 {
-  margin: 0 0 18px;
-  font-size: 18px;
+label {
+  display: block;
+  margin-top: 10px;
+  font-weight: bold;
 }
 
-.setting {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+.select-group {
+  margin-top: 5px;
 }
 
-.profile {
-  display: grid;
-  gap: 7px;
-  margin-top: 18px;
-  color: #d4d4d8;
-  font-size: 12px;
-}
-
-.profile[hidden] {
+#diagnostic-container[hidden] {
   display: none;
 }
 
 select {
   width: 100%;
-  padding: 8px;
-  border: 1px solid #3f3f46;
-  border-radius: 6px;
-  background: #27272a;
-  color: #fafafa;
+  box-sizing: border-box;
+  padding: 5px;
 }
 
-.setting span {
-  display: grid;
-  gap: 3px;
+.checkbox-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
 }
 
-.secondary-setting {
-  margin-top: 18px;
+.checkbox-group input[type="checkbox"] {
+  margin-top: 4px;
 }
 
-small,
+.checkbox-group label {
+  display: inline;
+  margin: 0;
+  font-weight: normal;
+  cursor: pointer;
+}
+
+#diagnostic-section {
+  margin-top: 15px;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+#diagnostic-container {
+  margin-top: 10px;
+}
+
+.warning,
 .note {
-  color: #a1a1aa;
+  color: #666;
+  font-size: 0.85em;
+  line-height: 1.4;
 }
 
 .warning {
-  margin: 8px 0 0;
-  padding: 8px;
-  border: 1px solid #854d0e;
-  border-radius: 6px;
-  background: #422006;
-  color: #fde68a;
-  font-size: 11px;
-  line-height: 1.5;
+  margin-bottom: 0;
 }
 
-input {
-  width: 42px;
-  height: 22px;
-  accent-color: #e11d48;
+spacer {
+  display: block;
+  width: 100%;
+  margin-top: 20px;
+}
+
+button {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  background-color: #4caf50;
+  color: white;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.65;
 }
 
 #status {
-  min-height: 18px;
-  margin: 14px 0 0;
-  color: #86efac;
-  font-size: 12px;
-}
-
-.note {
-  margin: 12px 0 0;
-  font-size: 11px;
-  line-height: 1.5;
+  min-height: 1em;
+  margin-top: 10px;
+  color: green;
+  font-size: 0.9em;
 }

@@ -4,9 +4,19 @@
   "version": "0.2.0",
   "description": "YouTube動画へAnime4Kアップスケーリングとカラーレンジ変換をリアルタイムに適用します。",
   "minimum_chrome_version": "113",
+  "icons": {
+    "16": "design/icon.png",
+    "32": "design/icon.png",
+    "48": "design/icon.png",
+    "128": "design/icon.png"
+  },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "YouTube Video Filter"
+    "default_title": "YouTube Video Filter",
+    "default_icon": {
+      "16": "design/icon.png",
+      "32": "design/icon.png"
+    }
   },
   "permissions": [
     "storage",
