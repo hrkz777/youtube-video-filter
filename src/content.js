@@ -640,6 +640,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
           restoreOriginalVideo("WebGPUで未捕捉エラーが発生しました", event.error);
         });
         device.lost.then((information) => {
+          if (cancelled || failed) return;
           diagnostic("WebGPUデバイスロストの詳細", information);
           restoreOriginalVideo(`WebGPUデバイスが失われました (${information.reason})`, new Error(information.message));
         });
