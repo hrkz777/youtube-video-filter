@@ -30,6 +30,16 @@ let currentSettings = {
   detailedLogging: false,
   diagnosticStage: "full"
 };
+let currentStatistics = {
+  status: "初期化中",
+  inputWidth: null,
+  inputHeight: null,
+  outputWidth: null,
+  outputHeight: null,
+  inputFps: null,
+  outputFps: null,
+  dropRate: null
+};
 const failedSources = new WeakMap();
 
 const DIAGNOSTIC_STAGE_NAMES = {
@@ -87,6 +97,31 @@ function report(message, error) {
 function diagnostic(message, details) {
   if (!detailedLogging) return;
   console.info(`[YouTube Video Filter][詳細] ${message}`, details ?? "");
+}
+
+function updateStatistics(changes) {
+  currentStatistics = { ...currentStatistics, ...changes };
+  playerSettingsUi?.syncStatistics();
+}
+
+function resetStatistics(status) {
+  currentStatistics = {
+    status,
+    inputWidth: null,
+    inputHeight: null,
+    outputWidth: null,
+    outputHeight: null,
+    inputFps: null,
+    outputFps: null,
+    dropRate: null
+  };
+  playerSettingsUi?.syncStatistics();
+}
+
+function getInactiveStatisticsStatus() {
+  return currentSettings.enabled || currentSettings.colorRangeMode !== "none"
+    ? "初期化中"
+    : "無効";
 }
 
 function getSafeSourceUrl(sourceUrl) {
@@ -379,11 +414,15 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
     || initializationInProgress
     || activeVideo === video
     || !navigator.gpu) {
-    if (!navigator.gpu) report("WebGPUが利用できないため、元の映像を表示します");
+    if (!navigator.gpu) {
+      updateStatistics({ status: "エラー" });
+      report("WebGPUが利用できないため、元の映像を表示します");
+    }
     return;
   }
 
   initializationInProgress = true;
+  updateStatistics({ status: "初期化中" });
   let canvas;
   let stopCanvasLayoutSync;
   let renderingDevice;
@@ -392,11 +431,24 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
   let failed = false;
   let cancelled = false;
   let sourceAtInitialization = "";
+  let lastDetailedStatisticsFrame = 0;
   const originalVisibility = video.style.visibility;
+  const handlePlaybackStateChange = () => {
+    if (cancelled || failed) return;
+    updateStatistics({
+      status: video.paused
+        ? "一時停止中"
+        : activeVideo === video
+          ? "適用中"
+          : "初期化中"
+    });
+  };
 
   const stopWatchingSource = () => {
     video.removeEventListener("loadstart", handleVideoSourceChange);
     video.removeEventListener("emptied", handleVideoSourceChange);
+    video.removeEventListener("pause", handlePlaybackStateChange);
+    video.removeEventListener("playing", handlePlaybackStateChange);
   };
 
   const cancelProcessing = () => {
@@ -423,6 +475,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
       currentSource: getSafeSourceDescription(video)
     });
     failedSources.delete(video);
+    resetStatistics("初期化中");
     cancelProcessing();
     queueMicrotask(findYouTubeVideo);
   };
@@ -443,6 +496,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
       activeVideoSource = "";
     }
     if (cancelActiveProcessing === cancelProcessing) cancelActiveProcessing = null;
+    updateStatistics({ status: "エラー" });
     report(`${reason}。元の映像へ戻しました`, error);
   };
 
@@ -461,14 +515,23 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
     diagnostic("動画メタデータを取得", getVideoState(video));
 
     if (enabled && diagnosticStage === "full" && profile === "v4.1-low-resolution" && video.videoHeight > 360) {
+      updateStatistics({ status: "エラー" });
       report(`v4.1低解像度モードは360p以下専用です（現在: ${video.videoHeight}p）。元の映像を表示します`);
       return;
     }
 
     video.addEventListener("loadstart", handleVideoSourceChange);
     video.addEventListener("emptied", handleVideoSourceChange);
+    video.addEventListener("pause", handlePlaybackStateChange);
+    video.addEventListener("playing", handlePlaybackStateChange);
 
     ({ canvas, stopLayoutSync: stopCanvasLayoutSync } = createCanvas(video));
+    updateStatistics({
+      inputWidth: video.videoWidth,
+      inputHeight: video.videoHeight,
+      outputWidth: canvas.width,
+      outputHeight: canvas.height
+    });
 
     rendererController = await render({
       video,
@@ -483,9 +546,18 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
       onGpuOutputSample: detailedLogging
         ? (rgba) => diagnostic("WebGPU表示直前の中央画素", JSON.stringify(rgba))
         : undefined,
-      onFrameStats: detailedLogging
-        ? (stats) => diagnostic("Anime4Kフレーム同期", stats)
-        : undefined,
+      onFrameStats: (stats) => {
+        updateStatistics({
+          status: video.paused ? "一時停止中" : "適用中",
+          inputFps: stats.approximateInputFps,
+          outputFps: stats.approximateOutputFps,
+          dropRate: stats.intervalDropRate
+        });
+        if (detailedLogging && stats.receivedFrames - lastDetailedStatisticsFrame >= 120) {
+          lastDetailedStatisticsFrame = stats.receivedFrames;
+          diagnostic("Anime4Kフレーム同期", stats);
+        }
+      },
       onRuntimeError: (error) => {
         diagnostic("レンダリングループの実行時エラー", {
           name: error?.constructor?.name,
@@ -562,6 +634,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
 
     activeVideo = video;
     activeVideoSource = sourceAtInitialization;
+    updateStatistics({ status: video.paused ? "一時停止中" : "適用中" });
     video.classList.add(VIDEO_CLASS);
     // opacity: 0ではChrome/ANGLEの動画オーバーレイ面が残り、正常に描画された
     // WebGPU Canvasを黒く覆う場合がある。visibilityはレイアウトと動画デコードを
@@ -634,6 +707,7 @@ function findYouTubeVideo() {
       currentSource: getSafeSourceDescription(video)
     });
     failedSources.delete(video);
+    resetStatistics("初期化中");
     cancelActiveProcessing?.();
   }
   const sourcePreviouslyFailed = video && failedSources.get(video) === video.currentSrc;
@@ -646,6 +720,7 @@ function applySettings(changes) {
   const previousSettings = currentSettings;
   currentSettings = normalizeSettings({ ...currentSettings, ...changes });
   detailedLogging = currentSettings.detailedLogging;
+  updateStatistics({ status: getInactiveStatisticsStatus() });
   playerSettingsUi?.sync();
 
   diagnostic("設定変更を検出", {
@@ -672,8 +747,10 @@ async function start() {
   });
   currentSettings = normalizeSettings(settings);
   detailedLogging = currentSettings.detailedLogging;
+  resetStatistics(getInactiveStatisticsStatus());
   playerSettingsUi = createPlayerSettingsUi({
     getSettings: () => currentSettings,
+    getStatistics: () => currentStatistics,
     onChange: (changes) => chrome.storage.local.set(changes)
   });
 
@@ -694,6 +771,7 @@ async function start() {
     cancelActiveProcessing = null;
     activeVideo = null;
     activeVideoSource = "";
+    resetStatistics(getInactiveStatisticsStatus());
   };
   const handleVisibilityChange = () => {
     if (document.visibilityState !== "visible") {
@@ -702,10 +780,12 @@ async function start() {
       cancelActiveProcessing = null;
       activeVideo = null;
       activeVideoSource = "";
+      updateStatistics({ status: "一時停止中" });
       return;
     }
 
     diagnostic("タブが表示されたため現在の再生位置からフィルター処理を再開");
+    updateStatistics({ status: getInactiveStatisticsStatus() });
     refreshPlayer();
   };
   new MutationObserver(refreshPlayer).observe(document.documentElement, {

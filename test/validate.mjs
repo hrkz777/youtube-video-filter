@@ -10,6 +10,7 @@ const popupBundle = await readFile("dist/popup.js", "utf8");
 const icon = await readFile("dist/design/icon.png");
 const contentSource = await readFile("src/content.js", "utf8");
 const rendererSource = await readFile("src/renderer.js", "utf8");
+const playerSettingsSource = await readFile("src/player-settings.js", "utf8");
 
 assert.equal(manifest.manifest_version, 3);
 assert.equal(manifest.name, "YouTube Video Filter");
@@ -67,6 +68,14 @@ assert.match(contentBundle, /copyTextureToBuffer/);
 assert.match(contentBundle, /onGpuInputSample/);
 assert.match(contentBundle, /onGpuOutputSample/);
 assert.match(contentBundle, /onFrameStats/);
+assert.match(playerSettingsSource, /統計情報/);
+assert.match(playerSettingsSource, /入力FPS/);
+assert.match(playerSettingsSource, /出力FPS/);
+assert.match(playerSettingsSource, /破棄率/);
+assert.match(contentBundle, /data-statistic-value/);
+assert.match(contentBundle, /syncStatistics/);
+assert.match(contentSource, /getStatistics:\s*\(\) => currentStatistics/);
+assert.doesNotMatch(contentSource, /onFrameStats:\s*detailedLogging/);
 assert.match(contentBundle, /frameInFlight/);
 assert.match(contentBundle, /MAX_INPUT_FRAME_DRIFT_SECONDS/);
 assert.match(contentBundle, /synchronizationOffsetMs/);
@@ -101,6 +110,15 @@ assert.match(
   /if \(frameInFlight\) \{[\s\S]*?droppedFrames \+= 1;[\s\S]*?return;/
 );
 assert.equal(rendererSource.match(/device\.queue\.onSubmittedWorkDone\(\)/g)?.length, 1);
+assert.match(rendererSource, /FRAME_STATS_INTERVAL_MILLISECONDS\s*=\s*1000/);
+assert.match(rendererSource, /approximateInputFps/);
+assert.match(rendererSource, /intervalDropRate/);
+assert.match(rendererSource, /intervalDroppedFrames/);
+assert.match(rendererSource, /intervalStaleFrames/);
+assert.match(playerSettingsSource, /createStatisticItem\("status", "状態"\)/);
+assert.match(playerSettingsSource, /createStatisticItem\("resolution", "解像度"\)/);
+assert.match(playerSettingsSource, /statisticsMenu\.setAttribute\("role", "group"\)/);
+assert.doesNotMatch(playerSettingsSource, /chrome\.storage/);
 assert.match(contentBundle, /aria-expanded/);
 assert.match(contentBundle, /menuitemradio/);
 assert.match(contentBundle, /optionSetting/);

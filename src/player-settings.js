@@ -102,6 +102,20 @@ const PLAYER_SETTINGS_CSS = `
   .${PANEL_CLASS} .${PANEL_CLASS}__option[aria-checked="false"] .ytp-menuitem-icon {
     visibility: hidden;
   }
+  .${PANEL_CLASS} .${PANEL_CLASS}__statistic {
+    cursor: default;
+    pointer-events: none;
+  }
+  .${PANEL_CLASS} .${PANEL_CLASS}__statistic .ytp-menuitem-label {
+    padding-left: 16px;
+  }
+  .${PANEL_CLASS} .${PANEL_CLASS}__statistic .ytp-menuitem-content {
+    max-width: 58%;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 `;
 
 function createSvg(pathData, viewBox = "0 0 24 24") {
@@ -191,6 +205,18 @@ function createPanelHeader(title, showMain) {
   return header;
 }
 
+function createStatisticItem(key, title) {
+  const item = document.createElement("div");
+  item.className = `ytp-menuitem ${PANEL_CLASS}__statistic`;
+  item.setAttribute("role", "presentation");
+  const content = document.createElement("div");
+  content.className = "ytp-menuitem-content";
+  content.dataset.statisticValue = key;
+  content.textContent = "—";
+  item.append(createMenuLabel(title), content);
+  return item;
+}
+
 function createPanel(onChange) {
   const root = document.createElement("div");
   root.className = `${PANEL_CLASS} ytp-popup ytp-settings-menu`;
@@ -268,6 +294,13 @@ function createPanel(onChange) {
   const profileItem = createSubmenuItem("profile", "処理モード", "M3 17v2h6v-2H3Zm0-6v2h12v-2H3Zm0-6v2h18V5H3Z", showPage);
   const colorItem = createSubmenuItem("colorRangeMode", "カラーレンジ", "M12 3a9 9 0 1 0 0 18V3Zm0 2v14a7 7 0 0 1 0-14Z", showPage);
   mainMenu.append(anime4kItem, profileItem, colorItem);
+  const statisticsItem = createSubmenuItem(
+    "statistics",
+    "統計情報",
+    "M4 19h16v2H4v-2Zm1-2V9h3v8H5Zm5 0V3h3v14h-3Zm5 0v-6h3v6h-3Z",
+    showPage
+  );
+  mainMenu.append(statisticsItem);
   mainPanel.append(mainMenu);
   pages.set("main", mainPanel);
   popupContent.append(mainPanel);
@@ -306,6 +339,25 @@ function createPanel(onChange) {
     popupContent.append(panel);
   }
 
+  const statisticsPanel = document.createElement("div");
+  statisticsPanel.className = "ytp-panel";
+  statisticsPanel.hidden = true;
+  statisticsPanel.append(createPanelHeader("統計情報", () => showPage("main")));
+  const statisticsMenu = document.createElement("div");
+  statisticsMenu.className = "ytp-panel-menu";
+  statisticsMenu.setAttribute("role", "group");
+  statisticsMenu.setAttribute("aria-label", "現在の動画の統計情報");
+  statisticsMenu.append(
+    createStatisticItem("status", "状態"),
+    createStatisticItem("resolution", "解像度"),
+    createStatisticItem("inputFps", "入力FPS"),
+    createStatisticItem("outputFps", "出力FPS"),
+    createStatisticItem("dropRate", "破棄率")
+  );
+  statisticsPanel.append(statisticsMenu);
+  pages.set("statistics", statisticsPanel);
+  popupContent.append(statisticsPanel);
+
   root.setSetting = (setting, value) => {
     const descriptor = SUBMENUS[setting];
     const currentLabel = descriptor?.options.find(([optionValue]) => optionValue === value)?.[1] ?? "未設定";
@@ -321,6 +373,22 @@ function createPanel(onChange) {
     }
     for (const setting of Object.keys(SUBMENUS)) root.setSetting(setting, settings[setting]);
     updateLayout();
+  };
+  root.syncStatistics = (statistics) => {
+    const values = {
+      status: statistics.status,
+      resolution: statistics.inputWidth && statistics.inputHeight
+        && statistics.outputWidth && statistics.outputHeight
+        ? `${statistics.inputWidth}×${statistics.inputHeight} → ${statistics.outputWidth}×${statistics.outputHeight}`
+        : "—",
+      inputFps: Number.isFinite(statistics.inputFps) ? `${statistics.inputFps.toFixed(1)} fps` : "—",
+      outputFps: Number.isFinite(statistics.outputFps) ? `${statistics.outputFps.toFixed(1)} fps` : "—",
+      dropRate: Number.isFinite(statistics.dropRate) ? `${statistics.dropRate.toFixed(1)}%` : "—"
+    };
+    for (const [key, value] of Object.entries(values)) {
+      const element = root.querySelector(`[data-statistic-value="${key}"]`);
+      if (element) element.textContent = value || "—";
+    }
   };
   root.showMain = (focus = true) => showPage("main", focus);
   root.setOpen = (open) => {
@@ -353,7 +421,7 @@ function createButton() {
   return button;
 }
 
-export function createPlayerSettingsUi({ getSettings, onChange }) {
+export function createPlayerSettingsUi({ getSettings, getStatistics, onChange }) {
   if (!document.getElementById(STYLE_ID)) {
     const style = document.createElement("style");
     style.id = STYLE_ID;
@@ -377,6 +445,11 @@ export function createPlayerSettingsUi({ getSettings, onChange }) {
     button.classList.toggle("is-enabled", filterEnabled);
     button.title = filterEnabled ? "YouTube Video Filter設定（有効）" : "YouTube Video Filter設定（無効）";
     panel.syncSettings(settings);
+    panel.syncStatistics(getStatistics());
+  };
+  const syncStatistics = () => {
+    if (!panel) return;
+    panel.syncStatistics(getStatistics());
   };
   const ensure = () => {
     const player = document.querySelector("#movie_player");
@@ -421,5 +494,5 @@ export function createPlayerSettingsUi({ getSettings, onChange }) {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") close();
   });
-  return { ensure, sync, close };
+  return { ensure, sync, syncStatistics, close };
 }
