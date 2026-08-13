@@ -33,6 +33,7 @@ const DEFAULT_SETTINGS = {
 };
 let defaultSettings = { ...DEFAULT_SETTINGS };
 let tabSettings = {};
+let overriddenSettingKeys = [];
 let currentSettings = { ...DEFAULT_SETTINGS };
 let currentStatistics = {
   status: "初期化中",
@@ -811,11 +812,13 @@ async function start() {
   ]);
   defaultSettings = normalizeSettings(settings);
   tabSettings = tabResponse?.settings ?? {};
+  overriddenSettingKeys = tabResponse?.overriddenKeys ?? [];
   currentSettings = normalizeSettings({ ...defaultSettings, ...tabSettings });
   detailedLogging = currentSettings.detailedLogging;
   resetStatistics(getInactiveStatisticsStatus());
   playerSettingsUi = createPlayerSettingsUi({
     getSettings: () => currentSettings,
+    getOverriddenKeys: () => overriddenSettingKeys,
     getStatistics: () => currentStatistics,
     onChange: async (changes) => {
       const response = await chrome.runtime.sendMessage({
@@ -824,6 +827,16 @@ async function start() {
       });
       if (!response?.settings) throw new Error(response?.error || "タブ設定を保存できませんでした");
       tabSettings = response.settings;
+      overriddenSettingKeys = response.overriddenKeys ?? [];
+      applySettings({}, "tab");
+    },
+    onReset: async () => {
+      const response = await chrome.runtime.sendMessage({
+        type: "youtube-video-filter:reset-tab-settings"
+      });
+      if (!response?.settings) throw new Error(response?.error || "デフォルト設定へ戻せませんでした");
+      tabSettings = response.settings;
+      overriddenSettingKeys = [];
       applySettings({}, "tab");
     }
   });

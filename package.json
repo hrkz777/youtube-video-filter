@@ -5,8 +5,8 @@
   "description": "YouTube専用のAnime4Kアップスケーラー兼カラーレンジ変換フィルター",
   "scripts": {
     "build": "node build.mjs",
-    "check": "node --check src/background.js && node --check src/content.js && node --check src/renderer.js && node --check src/player-settings.js && node --check src/popup.js && node --check build.mjs && node --check test/validate.mjs",
-    "test": "node test/validate.mjs"
+    "check": "node --check src/background.js && node --check src/content.js && node --check src/renderer.js && node --check src/player-settings.js && node --check src/popup.js && node --check build.mjs && node --check test/background-settings.mjs && node --check test/validate.mjs",
+    "test": "node test/background-settings.mjs && node test/validate.mjs"
   },
   "dependencies": {
     "anime4k-webgpu": "1.0.0"

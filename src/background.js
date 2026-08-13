@@ -22,13 +22,42 @@ function sanitizeSettings(settings) {
   );
 }
 
+function sanitizeOverriddenKeys(keys) {
+  if (!Array.isArray(keys)) return [];
+  return SETTINGS_KEYS.filter((key) => keys.includes(key));
+}
+
+function normalizeSessionRecord(storedValue) {
+  if (storedValue?.values) {
+    return {
+      values: sanitizeSettings(storedValue.values),
+      overriddenKeys: sanitizeOverriddenKeys(storedValue.overriddenKeys)
+    };
+  }
+  return {
+    values: sanitizeSettings(storedValue),
+    overriddenKeys: []
+  };
+}
+
+async function createDefaultSessionRecord() {
+  return {
+    values: sanitizeSettings(await chrome.storage.local.get(SESSION_SETTINGS_DEFAULTS)),
+    overriddenKeys: []
+  };
+}
+
 async function getTabSettings(tabId) {
   const key = getStorageKey(tabId);
   const stored = await chrome.storage.session.get(key);
-  if (stored[key]) return sanitizeSettings(stored[key]);
-  const defaults = sanitizeSettings(await chrome.storage.local.get(SESSION_SETTINGS_DEFAULTS));
-  await chrome.storage.session.set({ [key]: defaults });
-  return defaults;
+  if (stored[key]) {
+    const record = normalizeSessionRecord(stored[key]);
+    await chrome.storage.session.set({ [key]: record });
+    return record;
+  }
+  const record = await createDefaultSessionRecord();
+  await chrome.storage.session.set({ [key]: record });
+  return record;
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -40,21 +69,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "youtube-video-filter:get-tab-settings") {
-    getTabSettings(tabId).then((settings) => {
-      sendResponse({ settings, overriddenKeys: Object.keys(settings) });
+    getTabSettings(tabId).then((record) => {
+      sendResponse({ settings: record.values, overriddenKeys: record.overriddenKeys });
     }).catch((error) => sendResponse({ error: error.message }));
     return true;
   }
 
   if (message.type === "youtube-video-filter:set-tab-settings") {
-    getTabSettings(tabId).then(async (previousSettings) => {
-      const settings = { ...previousSettings, ...sanitizeSettings(message.settings) };
-      await chrome.storage.session.set({ [getStorageKey(tabId)]: settings });
-      sendResponse({ settings, overriddenKeys: Object.keys(settings) });
+    getTabSettings(tabId).then(async (previousRecord) => {
+      const changes = sanitizeSettings(message.settings);
+      const record = {
+        values: { ...previousRecord.values, ...changes },
+        overriddenKeys: sanitizeOverriddenKeys([
+          ...previousRecord.overriddenKeys,
+          ...Object.keys(changes)
+        ])
+      };
+      await chrome.storage.session.set({ [getStorageKey(tabId)]: record });
+      sendResponse({ settings: record.values, overriddenKeys: record.overriddenKeys });
     }).catch((error) => sendResponse({ error: error.message }));
     return true;
   }
 
+  if (message.type === "youtube-video-filter:reset-tab-settings") {
+    createDefaultSessionRecord().then(async (record) => {
+      await chrome.storage.session.set({ [getStorageKey(tabId)]: record });
+      sendResponse({ settings: record.values, overriddenKeys: [] });
+    }).catch((error) => sendResponse({ error: error.message }));
+    return true;
+  }
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {

@@ -102,6 +102,22 @@ const PLAYER_SETTINGS_CSS = `
   .${PANEL_CLASS} .${PANEL_CLASS}__option[aria-checked="false"] .ytp-menuitem-icon {
     visibility: hidden;
   }
+  .${PANEL_CLASS} .${PANEL_CLASS}__session-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 5px;
+    border: 1px solid rgba(255, 255, 255, .55);
+    border-radius: 3px;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 14px;
+    vertical-align: 1px;
+  }
+  .${PANEL_CLASS} .${PANEL_CLASS}__reset[aria-disabled="true"] {
+    cursor: default;
+    opacity: .5;
+  }
   .${PANEL_CLASS} .${PANEL_CLASS}__statistic {
     cursor: default;
     pointer-events: none;
@@ -151,10 +167,20 @@ function createMenuLabel(title) {
   return label;
 }
 
+function createSessionBadge() {
+  const badge = document.createElement("span");
+  badge.className = `${PANEL_CLASS}__session-badge`;
+  badge.textContent = "タブ";
+  badge.hidden = true;
+  badge.setAttribute("aria-hidden", "true");
+  return badge;
+}
+
 function createToggleItem(setting, title, iconPath, saveChange) {
   const item = document.createElement("div");
   item.className = "ytp-menuitem";
   item.dataset.toggleSetting = setting;
+  item.dataset.settingTitle = title;
   item.setAttribute("role", "menuitemcheckbox");
   item.setAttribute("aria-checked", "false");
   item.setAttribute("aria-label", title);
@@ -164,7 +190,9 @@ function createToggleItem(setting, title, iconPath, saveChange) {
   const toggle = document.createElement("div");
   toggle.className = "ytp-menuitem-toggle-checkbox";
   content.append(toggle);
-  item.append(createMenuIcon(iconPath), createMenuLabel(title), content);
+  const label = createMenuLabel(title);
+  label.append(createSessionBadge());
+  item.append(createMenuIcon(iconPath), label, content);
   makeInteractive(item, () => {
     const checked = item.getAttribute("aria-checked") !== "true";
     item.setAttribute("aria-checked", String(checked));
@@ -178,14 +206,40 @@ function createSubmenuItem(setting, title, iconPath, showSubmenu) {
   const item = document.createElement("div");
   item.className = "ytp-menuitem";
   item.dataset.submenuItem = setting;
+  item.dataset.settingTitle = title;
   item.setAttribute("role", "menuitem");
   item.setAttribute("aria-haspopup", "true");
   item.tabIndex = 0;
   const content = document.createElement("div");
   content.className = "ytp-menuitem-content";
   content.dataset.valueFor = setting;
-  item.append(createMenuIcon(iconPath), createMenuLabel(title), content);
+  const label = createMenuLabel(title);
+  label.append(createSessionBadge());
+  item.append(createMenuIcon(iconPath), label, content);
   makeInteractive(item, () => showSubmenu(setting));
+  return item;
+}
+
+function createResetItem(resetSettings) {
+  const item = document.createElement("div");
+  item.className = `ytp-menuitem ${PANEL_CLASS}__reset`;
+  item.setAttribute("role", "menuitem");
+  item.setAttribute("aria-label", "デフォルトへ戻す");
+  item.setAttribute("aria-disabled", "true");
+  item.tabIndex = 0;
+  item.append(
+    createMenuIcon("M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6s-2.69 6-6 6a6 6 0 0 1-5.65-4H4.26A8 8 0 1 0 12 5Z"),
+    createMenuLabel("デフォルトへ戻す"),
+    Object.assign(document.createElement("div"), { className: "ytp-menuitem-content" })
+  );
+  makeInteractive(item, () => {
+    if (item.getAttribute("aria-disabled") === "true") return;
+    item.setAttribute("aria-disabled", "true");
+    Promise.resolve(resetSettings()).catch((error) => {
+      item.setAttribute("aria-disabled", "false");
+      console.error("[YouTube Video Filter] デフォルト設定へ戻せませんでした", error);
+    });
+  });
   return item;
 }
 
@@ -217,7 +271,7 @@ function createStatisticItem(key, title) {
   return item;
 }
 
-function createPanel(onChange) {
+function createPanel(onChange, onReset) {
   const root = document.createElement("div");
   root.className = `${PANEL_CLASS} ytp-popup ytp-settings-menu`;
   root.dataset.layer = "6";
@@ -293,7 +347,8 @@ function createPanel(onChange) {
   );
   const profileItem = createSubmenuItem("profile", "処理モード", "M3 17v2h6v-2H3Zm0-6v2h12v-2H3Zm0-6v2h18V5H3Z", showPage);
   const colorItem = createSubmenuItem("colorRangeMode", "カラーレンジ", "M12 3a9 9 0 1 0 0 18V3Zm0 2v14a7 7 0 0 1 0-14Z", showPage);
-  mainMenu.append(anime4kItem, profileItem, colorItem);
+  const resetItem = createResetItem(onReset);
+  mainMenu.append(anime4kItem, profileItem, colorItem, resetItem);
   const statisticsItem = createSubmenuItem(
     "statistics",
     "統計情報",
@@ -367,11 +422,22 @@ function createPanel(onChange) {
       option.setAttribute("aria-checked", String(option.dataset.optionValue === value));
     }
   };
-  root.syncSettings = (settings) => {
+  root.syncSettings = (settings, overriddenKeys = []) => {
     for (const item of root.querySelectorAll("[data-toggle-setting]")) {
       item.setAttribute("aria-checked", String(Boolean(settings[item.dataset.toggleSetting])));
     }
     for (const setting of Object.keys(SUBMENUS)) root.setSetting(setting, settings[setting]);
+    const overridden = new Set(overriddenKeys);
+    for (const item of root.querySelectorAll("[data-setting-title]")) {
+      const setting = item.dataset.toggleSetting ?? item.dataset.submenuItem;
+      const isOverridden = overridden.has(setting);
+      const badge = item.querySelector(`.${PANEL_CLASS}__session-badge`);
+      if (badge) badge.hidden = !isOverridden;
+      item.setAttribute("aria-label", isOverridden
+        ? `${item.dataset.settingTitle}（このタブ用設定）`
+        : item.dataset.settingTitle);
+    }
+    resetItem.setAttribute("aria-disabled", String(overridden.size === 0));
     updateLayout();
   };
   root.syncStatistics = (statistics) => {
@@ -421,7 +487,7 @@ function createButton() {
   return button;
 }
 
-export function createPlayerSettingsUi({ getSettings, getStatistics, onChange }) {
+export function createPlayerSettingsUi({ getSettings, getOverriddenKeys, getStatistics, onChange, onReset }) {
   if (!document.getElementById(STYLE_ID)) {
     const style = document.createElement("style");
     style.id = STYLE_ID;
@@ -444,7 +510,7 @@ export function createPlayerSettingsUi({ getSettings, getStatistics, onChange })
     const filterEnabled = settings.enabled || settings.colorRangeMode !== "none";
     button.classList.toggle("is-enabled", filterEnabled);
     button.title = filterEnabled ? "YouTube Video Filter設定（有効）" : "YouTube Video Filter設定（無効）";
-    panel.syncSettings(settings);
+    panel.syncSettings(settings, getOverriddenKeys());
     panel.syncStatistics(getStatistics());
   };
   const syncStatistics = () => {
@@ -461,7 +527,7 @@ export function createPlayerSettingsUi({ getSettings, getStatistics, onChange })
     panel?.remove();
     mountedPlayer = player;
     button = createButton();
-    panel = createPanel(onChange);
+    panel = createPanel(onChange, onReset);
     button.addEventListener("pointerdown", (event) => event.stopPropagation());
     button.addEventListener("click", (event) => {
       event.stopPropagation();
