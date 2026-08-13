@@ -1,3 +1,5 @@
+import { destroyAnime4kPipelineResources } from "./gpu-resources.js";
+
 const VERTEX_SHADER = /* wgsl */ `
 struct VertexOutput {
   @builtin(position) position: vec4f,
@@ -104,69 +106,96 @@ export async function render({
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC
   });
 
-  // 動画からfloat16へ直接コピーすると一部のChrome/ANGLE環境で黒くなるため、
-  // WebGPUの標準的な8-bit正規化テクスチャを入力として使用する。
-  const inputTexture = device.createTexture({
-    label: "YouTube video input (rgba8unorm)",
-    size: [video.videoWidth, video.videoHeight, 1],
-    format: "rgba8unorm",
-    usage: GPUTextureUsage.COPY_SRC
-      | GPUTextureUsage.COPY_DST
-      | GPUTextureUsage.TEXTURE_BINDING
-      | GPUTextureUsage.RENDER_ATTACHMENT
-  });
-  const bridgeCanvas = new OffscreenCanvas(video.videoWidth, video.videoHeight);
-  const bridgeContext = bridgeCanvas.getContext("2d", {
-    alpha: false,
-    desynchronized: true,
-    willReadFrequently: Boolean(onInputSample)
-  });
-  if (!bridgeContext) {
-    throw new Error("動画転送用の2D Canvasコンテキストを取得できませんでした");
-  }
-  const pipelines = pipelineBuilder(device, inputTexture);
-  const outputTexture = pipelines.at(-1)?.getOutputTexture();
-  if (!outputTexture) throw new Error("フィルター出力テクスチャを取得できませんでした");
+  let inputTexture;
+  let bridgeCanvas;
+  let bridgeContext;
+  let pipelines = [];
+  let renderPipeline;
+  let displaySettingsBuffer;
+  let bindGroup;
+  let resourcesReleased = false;
+  const releaseResources = () => {
+    if (resourcesReleased) return;
+    resourcesReleased = true;
+    destroyAnime4kPipelineResources(pipelines, [inputTexture]);
+    inputTexture?.destroy();
+    displaySettingsBuffer?.destroy();
+    context.unconfigure?.();
+    if (bridgeCanvas) {
+      bridgeCanvas.width = 1;
+      bridgeCanvas.height = 1;
+    }
+    device.destroy();
+  };
 
-  const bindGroupLayout = device.createBindGroupLayout({
-    entries: [
-      { binding: 0, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
-      { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {} },
-      { binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } }
-    ]
-  });
-  const renderPipeline = device.createRenderPipeline({
-    layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
-    vertex: {
-      module: device.createShaderModule({ code: VERTEX_SHADER }),
-      entryPoint: "main"
-    },
-    fragment: {
-      module: device.createShaderModule({ code: FRAGMENT_SHADER }),
-      entryPoint: "main",
-      targets: [{ format: canvasFormat }]
-    },
-    primitive: { topology: "triangle-list" }
-  });
-  const displaySettingsBuffer = device.createBuffer({
-    label: "YouTube Video Filter display settings",
-    size: 4,
-    usage: GPUBufferUsage.UNIFORM,
-    mappedAtCreation: true
-  });
-  new Uint32Array(displaySettingsBuffer.getMappedRange())[0] = COLOR_RANGE_MODE_VALUES[colorRangeMode] ?? 0;
-  displaySettingsBuffer.unmap();
-  const bindGroup = device.createBindGroup({
-    layout: bindGroupLayout,
-    entries: [
-      {
-        binding: 0,
-        resource: device.createSampler({ magFilter: "linear", minFilter: "linear" })
+  try {
+    // 動画からfloat16へ直接コピーすると一部のChrome/ANGLE環境で黒くなるため、
+    // WebGPUの標準的な8-bit正規化テクスチャを入力として使用する。
+    inputTexture = device.createTexture({
+      label: "YouTube video input (rgba8unorm)",
+      size: [video.videoWidth, video.videoHeight, 1],
+      format: "rgba8unorm",
+      usage: GPUTextureUsage.COPY_SRC
+        | GPUTextureUsage.COPY_DST
+        | GPUTextureUsage.TEXTURE_BINDING
+        | GPUTextureUsage.RENDER_ATTACHMENT
+    });
+    bridgeCanvas = new OffscreenCanvas(video.videoWidth, video.videoHeight);
+    bridgeContext = bridgeCanvas.getContext("2d", {
+      alpha: false,
+      desynchronized: true,
+      willReadFrequently: Boolean(onInputSample)
+    });
+    if (!bridgeContext) {
+      throw new Error("動画転送用の2D Canvasコンテキストを取得できませんでした");
+    }
+    pipelines = pipelineBuilder(device, inputTexture);
+    const outputTexture = pipelines.at(-1)?.getOutputTexture();
+    if (!outputTexture) throw new Error("フィルター出力テクスチャを取得できませんでした");
+
+    const bindGroupLayout = device.createBindGroupLayout({
+      entries: [
+        { binding: 0, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+        { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+        { binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } }
+      ]
+    });
+    renderPipeline = device.createRenderPipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+      vertex: {
+        module: device.createShaderModule({ code: VERTEX_SHADER }),
+        entryPoint: "main"
       },
-      { binding: 1, resource: outputTexture.createView() },
-      { binding: 2, resource: { buffer: displaySettingsBuffer } }
-    ]
-  });
+      fragment: {
+        module: device.createShaderModule({ code: FRAGMENT_SHADER }),
+        entryPoint: "main",
+        targets: [{ format: canvasFormat }]
+      },
+      primitive: { topology: "triangle-list" }
+    });
+    displaySettingsBuffer = device.createBuffer({
+      label: "YouTube Video Filter display settings",
+      size: 4,
+      usage: GPUBufferUsage.UNIFORM,
+      mappedAtCreation: true
+    });
+    new Uint32Array(displaySettingsBuffer.getMappedRange())[0] = COLOR_RANGE_MODE_VALUES[colorRangeMode] ?? 0;
+    displaySettingsBuffer.unmap();
+    bindGroup = device.createBindGroup({
+      layout: bindGroupLayout,
+      entries: [
+        {
+          binding: 0,
+          resource: device.createSampler({ magFilter: "linear", minFilter: "linear" })
+        },
+        { binding: 1, resource: outputTexture.createView() },
+        { binding: 2, resource: { buffer: displaySettingsBuffer } }
+      ]
+    });
+  } catch (error) {
+    releaseResources();
+    throw error;
+  }
 
   let stopped = false;
   let inputSampleReported = false;
@@ -410,7 +439,12 @@ export async function render({
   };
 
   frameRequestId = video.requestVideoFrameCallback(drawFrame);
-  await firstFrame;
+  try {
+    await firstFrame;
+  } catch (error) {
+    releaseResources();
+    throw error;
+  }
 
   return {
     device,
@@ -419,8 +453,7 @@ export async function render({
     stop() {
       stopped = true;
       if (frameRequestId !== undefined) video.cancelVideoFrameCallback(frameRequestId);
-      inputTexture.destroy();
-      displaySettingsBuffer.destroy();
+      releaseResources();
     }
   };
 }

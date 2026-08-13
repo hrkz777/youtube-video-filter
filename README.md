@@ -50,6 +50,7 @@ npm run build
 - HDR動画、DRM保護された動画、非常に高い解像度では、ブラウザやGPUの制約により適用できない場合があります。
 - v4.1 Low resolution experimentは360p以下の動画だけで有効になります。公式推奨の `Restore GAN UUL → Upscale GAN x4 UUL → Restore CNN Soft M → Upscale CNN x2 M` を使用するため、通常モードより大幅に高いGPU性能とVRAMが必要です。
 - A+AおよびB+Bは2倍以上の拡大を想定した高負荷モードです。A+Cは公式標準プリセットではなく、本拡張機能独自の直列構成です。
+- Rendererはタブ内のフィルター処理ごとにWebGPU Deviceを所有し、停止時に破棄します。入力Textureと表示用Uniform Bufferに加え、`anime4k-webgpu 1.0.0` が生成する中間TextureとパラメーターBufferをプリセット内部の公開フィールドから再帰的に追跡し、入力Textureを除外して重複なく破棄します。Canvasコンテキストと2D中継バッファーも同時に解放します。
 - 公式Anime4Kの安定版リリースはv4.0.1です。公式READMEでv4.1は低解像度向け実験として扱われています。本拡張は本家READMEに掲載されている第三者製WebGPU移植を使用するため、mpv向けGLSLファイルをそのまま実行するものではありません。
 
 ## 出典とライセンス
