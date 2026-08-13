@@ -1,4 +1,8 @@
 import { destroyAnime4kPipelineResources } from "./gpu-resources.js";
+import {
+  INPUT_TRANSFER_SAMPLE_POINTS,
+  areDirectTransferSamplesValid
+} from "./input-transfer.js";
 
 const VERTEX_SHADER = /* wgsl */ `
 struct VertexOutput {
@@ -54,6 +58,71 @@ const COLOR_RANGE_MODE_VALUES = {
 };
 const MAX_INPUT_FRAME_DRIFT_SECONDS = 0.1;
 const FRAME_STATS_INTERVAL_MILLISECONDS = 1000;
+
+async function validateDirectVideoTransfer(device, video, inputTexture, bridgeContext) {
+  const buffers = [];
+  let errorScopeActive = false;
+  try {
+    bridgeContext.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+    const referenceSamples = INPUT_TRANSFER_SAMPLE_POINTS.map(([xRatio, yRatio]) => (
+      Array.from(bridgeContext.getImageData(
+        Math.floor(video.videoWidth * xRatio),
+        Math.floor(video.videoHeight * yRatio),
+        1,
+        1
+      ).data)
+    ));
+
+    device.pushErrorScope("validation");
+    errorScopeActive = true;
+    device.queue.copyExternalImageToTexture(
+      { source: video },
+      { texture: inputTexture, colorSpace: "srgb" },
+      [video.videoWidth, video.videoHeight]
+    );
+    const encoder = device.createCommandEncoder();
+    for (const [xRatio, yRatio] of INPUT_TRANSFER_SAMPLE_POINTS) {
+      const buffer = device.createBuffer({
+        size: 256,
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+      });
+      buffers.push(buffer);
+      encoder.copyTextureToBuffer(
+        {
+          texture: inputTexture,
+          origin: {
+            x: Math.floor(video.videoWidth * xRatio),
+            y: Math.floor(video.videoHeight * yRatio)
+          }
+        },
+        { buffer, bytesPerRow: 256 },
+        { width: 1, height: 1 }
+      );
+    }
+    device.queue.submit([encoder.finish()]);
+    const validationResult = device.popErrorScope();
+    errorScopeActive = false;
+    const validationError = await validationResult;
+    if (validationError) return { supported: false, referenceSamples };
+
+    await Promise.all(buffers.map((buffer) => buffer.mapAsync(GPUMapMode.READ)));
+    const directSamples = buffers.map((buffer) => (
+      Array.from(new Uint8Array(buffer.getMappedRange(), 0, 4))
+    ));
+    return {
+      supported: areDirectTransferSamplesValid(referenceSamples, directSamples),
+      referenceSamples
+    };
+  } catch {
+    return { supported: false, referenceSamples: [] };
+  } finally {
+    if (errorScopeActive) await device.popErrorScope().catch(() => {});
+    for (const buffer of buffers) {
+      try { buffer.unmap(); } catch {}
+      buffer.destroy();
+    }
+  }
+}
 
 function waitForVideoData(video) {
   if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
@@ -113,6 +182,8 @@ export async function render({
   let renderPipeline;
   let displaySettingsBuffer;
   let bindGroup;
+  let useDirectVideoTransfer = false;
+  let initialInputSampleReported = false;
   let resourcesReleased = false;
   const releaseResources = () => {
     if (resourcesReleased) return;
@@ -148,6 +219,20 @@ export async function render({
     });
     if (!bridgeContext) {
       throw new Error("動画転送用の2D Canvasコンテキストを取得できませんでした");
+    }
+    const transferValidation = await validateDirectVideoTransfer(
+      device,
+      video,
+      inputTexture,
+      bridgeContext
+    );
+    useDirectVideoTransfer = transferValidation.supported;
+    if (onInputSample && transferValidation.referenceSamples.length > 0) {
+      onInputSample(transferValidation.referenceSamples.map((rgba, index) => ({
+        position: INPUT_TRANSFER_SAMPLE_POINTS[index].join(","),
+        rgba
+      })));
+      initialInputSampleReported = true;
     }
     pipelines = pipelineBuilder(device, inputTexture);
     const outputTexture = pipelines.at(-1)?.getOutputTexture();
@@ -198,7 +283,7 @@ export async function render({
   }
 
   let stopped = false;
-  let inputSampleReported = false;
+  let inputSampleReported = initialInputSampleReported;
   let gpuInputSampleReported = false;
   let gpuOutputSampleReported = false;
   let frameRequestId;
@@ -299,14 +384,18 @@ export async function render({
       // HTMLVideoElementからWebGPUへ直接コピーすると、Chrome/ANGLEの動画デコード
       // 経路によっては検証エラーなしで黒い画素が返る。2D Canvasを中継して
       // デコーダー固有の内部表現をRGBAへ確実に変換する。
-      bridgeContext.drawImage(
-        video,
-        0,
-        0,
-        video.videoWidth,
-        video.videoHeight
-      );
-      if (!inputSampleReported && onInputSample) {
+      let bridgeFramePrepared = false;
+      if (!useDirectVideoTransfer) {
+        bridgeContext.drawImage(
+          video,
+          0,
+          0,
+          video.videoWidth,
+          video.videoHeight
+        );
+        bridgeFramePrepared = true;
+      }
+      if (!useDirectVideoTransfer && !inputSampleReported && onInputSample) {
         inputSampleReported = true;
         const samplePoints = [
           [0.25, 0.25],
@@ -324,12 +413,29 @@ export async function render({
         }));
         onInputSample(samples);
       }
-      frameBitmap = bridgeCanvas.transferToImageBitmap();
-      device.queue.copyExternalImageToTexture(
-        { source: frameBitmap },
-        { texture: inputTexture, colorSpace: "srgb" },
-        [video.videoWidth, video.videoHeight]
-      );
+      inputSampleReported = true;
+      if (useDirectVideoTransfer) {
+        try {
+          device.queue.copyExternalImageToTexture(
+            { source: video },
+            { texture: inputTexture, colorSpace: "srgb" },
+            [video.videoWidth, video.videoHeight]
+          );
+        } catch {
+          useDirectVideoTransfer = false;
+        }
+      }
+      if (!useDirectVideoTransfer) {
+        if (!bridgeFramePrepared) {
+          bridgeContext.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+        }
+        frameBitmap = bridgeCanvas.transferToImageBitmap();
+        device.queue.copyExternalImageToTexture(
+          { source: frameBitmap },
+          { texture: inputTexture, colorSpace: "srgb" },
+          [video.videoWidth, video.videoHeight]
+        );
+      }
 
       const encoder = device.createCommandEncoder();
       for (const pipeline of pipelines) pipeline.pass(encoder);
@@ -426,7 +532,7 @@ export async function render({
       // ImageBitmapを生存させる。完了待ちをフレーム受付のゲートとしても使い、
       // 過負荷時に古いフレームがGPUキューへ蓄積することを防ぐ。
       device.queue.onSubmittedWorkDone().then(() => {
-        frameBitmap.close();
+        frameBitmap?.close();
         frameInFlight = false;
         if (stopped) return;
         completedFrames += 1;
@@ -436,7 +542,7 @@ export async function render({
           resolveFirstFrame();
         }
       }, (error) => {
-        frameBitmap.close();
+        frameBitmap?.close();
         frameInFlight = false;
         fail(error);
       });
@@ -459,7 +565,9 @@ export async function render({
   return {
     device,
     inputFormat: "rgba8unorm",
-    inputTransfer: "2d-canvas-to-image-bitmap",
+    inputTransfer: useDirectVideoTransfer
+      ? "direct-video-validated"
+      : "2d-canvas-to-image-bitmap",
     updateColorRangeMode(nextColorRangeMode) {
       if (stopped || resourcesReleased) return false;
       try {
