@@ -13,6 +13,7 @@ import {
   Original
 } from "anime4k-webgpu";
 import { render } from "./renderer.js";
+import { getSettingsUpdateAction } from "./settings-update.js";
 import { createPlayerSettingsUi } from "./player-settings.js";
 import { createFilterFailureRegistry, getFilterCompatibilityError } from "./filter-failure.js";
 
@@ -21,6 +22,7 @@ const VIDEO_CLASS = "youtube-filter-source";
 const FILTER_RESIZE_DEBOUNCE_MILLISECONDS = 300;
 let activeVideo = null;
 let activeVideoSource = "";
+let activeRendererController = null;
 let initializationInProgress = false;
 let detailedLogging = false;
 let cancelActiveProcessing = null;
@@ -521,6 +523,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
       activeVideo = null;
       activeVideoSource = "";
     }
+    if (activeRendererController === rendererController) activeRendererController = null;
     if (cancelActiveProcessing === cancelProcessing) cancelActiveProcessing = null;
     diagnostic("現在のフィルター処理を停止");
   };
@@ -553,6 +556,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
       activeVideo = null;
       activeVideoSource = "";
     }
+    if (activeRendererController === rendererController) activeRendererController = null;
     if (cancelActiveProcessing === cancelProcessing) cancelActiveProcessing = null;
     updateStatistics({ status: "エラー" });
     report(`${reason}。元の映像へ戻しました`, error);
@@ -698,6 +702,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
 
     activeVideo = video;
     activeVideoSource = sourceAtInitialization;
+    activeRendererController = rendererController;
     updateStatistics({ status: video.paused ? "一時停止中" : "適用中" });
     scheduleResizeRestart(latestTargetSize ?? getCanvasSize(video));
     video.classList.add(VIDEO_CLASS);
@@ -794,7 +799,6 @@ function applySettings(changes, scope = "tab") {
   }
   currentSettings = normalizeSettings({ ...defaultSettings, ...tabSettings });
   detailedLogging = currentSettings.detailedLogging;
-  updateStatistics({ status: getInactiveStatisticsStatus() });
   playerSettingsUi?.sync();
 
   diagnostic("設定変更を検出", {
@@ -802,11 +806,30 @@ function applySettings(changes, scope = "tab") {
     current: currentSettings
   });
 
-  const video = document.querySelector("#movie_player video.html5-main-video");
+  const updateAction = getSettingsUpdateAction(
+    previousSettings,
+    currentSettings,
+    Boolean(activeRendererController)
+  );
+  if (updateAction === "none") return;
+  if (updateAction === "update-color-range"
+    && activeRendererController?.updateColorRangeMode(currentSettings.colorRangeMode)) {
+    diagnostic("カラーレンジ設定を再初期化せず更新", {
+      colorRangeMode: currentSettings.colorRangeMode
+    });
+    return;
+  }
+
   cancelActiveProcessing?.();
   cancelActiveProcessing = null;
   activeVideo = null;
   activeVideoSource = "";
+  activeRendererController = null;
+  if (updateAction === "stop") {
+    resetStatistics("無効");
+    return;
+  }
+  resetStatistics("初期化中");
   findYouTubeVideo();
 }
 

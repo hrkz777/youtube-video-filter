@@ -176,7 +176,7 @@ export async function render({
     displaySettingsBuffer = device.createBuffer({
       label: "YouTube Video Filter display settings",
       size: 4,
-      usage: GPUBufferUsage.UNIFORM,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       mappedAtCreation: true
     });
     new Uint32Array(displaySettingsBuffer.getMappedRange())[0] = COLOR_RANGE_MODE_VALUES[colorRangeMode] ?? 0;
@@ -450,6 +450,19 @@ export async function render({
     device,
     inputFormat: "rgba8unorm",
     inputTransfer: "2d-canvas-to-image-bitmap",
+    updateColorRangeMode(nextColorRangeMode) {
+      if (stopped || resourcesReleased) return false;
+      try {
+        device.queue.writeBuffer(
+          displaySettingsBuffer,
+          0,
+          new Uint32Array([COLOR_RANGE_MODE_VALUES[nextColorRangeMode] ?? 0])
+        );
+        return true;
+      } catch {
+        return false;
+      }
+    },
     stop() {
       stopped = true;
       if (frameRequestId !== undefined) video.cancelVideoFrameCallback(frameRequestId);
