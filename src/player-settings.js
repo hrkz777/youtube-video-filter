@@ -375,7 +375,10 @@ function createPanel(onChange, onReset, getSettings, getOverriddenKeys) {
   );
   const profileItem = createSubmenuItem("profile", "処理モード", "M3 17v2h6v-2H3Zm0-6v2h12v-2H3Zm0-6v2h18V5H3Z", showPage);
   const colorItem = createSubmenuItem("colorRangeMode", "カラーレンジ", "M12 3a9 9 0 1 0 0 18V3Zm0 2v14a7 7 0 0 1 0-14Z", showPage);
-  const resetItem = createResetItem(onReset, (message) => root.showError(message));
+  const resetItem = createResetItem(onReset, (message) => {
+    root.syncSettings(getSettings(), getOverriddenKeys());
+    root.showError(message);
+  });
   mainMenu.append(anime4kItem, profileItem, colorItem, resetItem);
   const saveErrorItem = document.createElement("div");
   saveErrorItem.className = `ytp-menuitem ${PANEL_CLASS}__save-error`;
