@@ -17,6 +17,7 @@ import { getSettingsUpdateAction } from "./settings-update.js";
 import { createPlayerSettingsUi } from "./player-settings.js";
 import { createFilterFailureRegistry, getFilterCompatibilityError } from "./filter-failure.js";
 import { shouldRestartForResize } from "./resize-policy.js";
+import { DEFAULT_SETTINGS, normalizeSettings } from "./settings-schema.js";
 
 const CANVAS_CLASS = "youtube-filter-canvas";
 const VIDEO_CLASS = "youtube-filter-source";
@@ -28,13 +29,6 @@ let initializationInProgress = false;
 let detailedLogging = false;
 let cancelActiveProcessing = null;
 let playerSettingsUi = null;
-const DEFAULT_SETTINGS = {
-  enabled: true,
-  profile: "auto",
-  colorRangeMode: "none",
-  detailedLogging: false,
-  diagnosticStage: "full"
-};
 let defaultSettings = { ...DEFAULT_SETTINGS };
 let tabSettings = {};
 let overriddenSettingKeys = [];
@@ -57,17 +51,6 @@ const DIAGNOSTIC_STAGE_NAMES = {
   clamp: "B: ClampHighlightsまで",
   restore: "C: Restore CNN VLまで"
 };
-const VALID_PROFILES = new Set([
-  "auto",
-  "mode-a",
-  "mode-b",
-  "mode-c",
-  "mode-aa",
-  "mode-bb",
-  "mode-ac",
-  "v4.1-low-resolution"
-]);
-const VALID_COLOR_RANGE_MODES = new Set(["none", "limited-to-full", "full-to-limited"]);
 const COLOR_RANGE_NAMES = {
   none: "変換なし",
   "limited-to-full": "リミテッド → フル",
@@ -83,20 +66,6 @@ const PROFILE_NAMES = {
   "mode-ac": "Mode A+C（カスタム）",
   "v4.1-low-resolution": "v4.1 Low resolution experiment"
 };
-
-function normalizeSettings(settings) {
-  return {
-    enabled: typeof settings.enabled === "boolean" ? settings.enabled : true,
-    profile: VALID_PROFILES.has(settings.profile) ? settings.profile : "auto",
-    colorRangeMode: VALID_COLOR_RANGE_MODES.has(settings.colorRangeMode)
-      ? settings.colorRangeMode
-      : "none",
-    detailedLogging: settings.detailedLogging === true,
-    diagnosticStage: Object.hasOwn(DIAGNOSTIC_STAGE_NAMES, settings.diagnosticStage)
-      ? settings.diagnosticStage
-      : "full"
-  };
-}
 
 function report(message, error) {
   const method = error ? "error" : "info";

@@ -1,10 +1,11 @@
+import {
+  TAB_SETTING_KEYS,
+  TAB_SETTINGS_DEFAULTS,
+  sanitizeSettings,
+  validateSettingChanges
+} from "./settings-schema.js";
+
 const TAB_SETTINGS_PREFIX = "tab-settings:";
-const SESSION_SETTINGS_DEFAULTS = {
-  enabled: true,
-  profile: "auto",
-  colorRangeMode: "none"
-};
-const SETTINGS_KEYS = Object.keys(SESSION_SETTINGS_DEFAULTS);
 
 function getStorageKey(tabId) {
   return `${TAB_SETTINGS_PREFIX}${tabId}`;
@@ -15,34 +16,29 @@ function resolveTabId(sender) {
   return Number.isInteger(tabId) && tabId >= 0 ? tabId : null;
 }
 
-function sanitizeSettings(settings) {
-  return Object.fromEntries(
-    SETTINGS_KEYS.filter((key) => Object.hasOwn(settings ?? {}, key))
-      .map((key) => [key, settings[key]])
-  );
-}
-
 function sanitizeOverriddenKeys(keys) {
   if (!Array.isArray(keys)) return [];
-  return SETTINGS_KEYS.filter((key) => keys.includes(key));
+  return TAB_SETTING_KEYS.filter((key) => keys.includes(key));
 }
 
 function normalizeSessionRecord(storedValue) {
   if (storedValue?.values) {
+    const values = sanitizeSettings(storedValue.values, TAB_SETTING_KEYS);
     return {
-      values: sanitizeSettings(storedValue.values),
+      values,
       overriddenKeys: sanitizeOverriddenKeys(storedValue.overriddenKeys)
+        .filter((key) => Object.hasOwn(values, key))
     };
   }
   return {
-    values: sanitizeSettings(storedValue),
+    values: sanitizeSettings(storedValue, TAB_SETTING_KEYS),
     overriddenKeys: []
   };
 }
 
 async function createDefaultSessionRecord() {
   return {
-    values: sanitizeSettings(await chrome.storage.local.get(SESSION_SETTINGS_DEFAULTS)),
+    values: sanitizeSettings(await chrome.storage.local.get(TAB_SETTINGS_DEFAULTS), TAB_SETTING_KEYS),
     overriddenKeys: []
   };
 }
@@ -77,7 +73,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === "youtube-video-filter:set-tab-settings") {
     getTabSettings(tabId).then(async (previousRecord) => {
-      const changes = sanitizeSettings(message.settings);
+      const changes = validateSettingChanges(message.settings, TAB_SETTING_KEYS);
       const record = {
         values: { ...previousRecord.values, ...changes },
         overriddenKeys: sanitizeOverriddenKeys([
