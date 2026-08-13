@@ -70,6 +70,9 @@ const PLAYER_SETTINGS_CSS = `
     height: auto;
     max-height: calc(100% - 72px);
   }
+  .${PANEL_CLASS}.${PANEL_CLASS}__selection-page.ytp-popup.ytp-settings-menu {
+    width: min(251px, calc(100% - 24px));
+  }
   .${PANEL_CLASS}.ytp-popup.ytp-settings-menu:not([hidden]) {
     display: block !important;
     visibility: visible;
@@ -98,9 +101,6 @@ const PLAYER_SETTINGS_CSS = `
     width: 24px;
     height: 24px;
     fill: currentColor;
-  }
-  .${PANEL_CLASS} .${PANEL_CLASS}__option[aria-checked="false"] .ytp-menuitem-icon {
-    visibility: hidden;
   }
   .${PANEL_CLASS} .${PANEL_CLASS}__session-badge {
     display: inline-block;
@@ -246,16 +246,20 @@ function createResetItem(resetSettings) {
 function createPanelHeader(title, showMain) {
   const header = document.createElement("div");
   header.className = "ytp-panel-header";
-  const back = document.createElement("div");
-  back.className = "ytp-panel-back-button";
-  back.setAttribute("role", "button");
-  back.setAttribute("aria-label", "戻る");
-  back.tabIndex = 0;
+  const backContainer = document.createElement("div");
+  backContainer.className = "ytp-panel-back-button-container";
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "ytp-button ytp-panel-back-button";
+  back.setAttribute("aria-label", "前のメニューに戻る");
   makeInteractive(back, showMain);
-  const heading = document.createElement("div");
+  backContainer.append(back);
+  const heading = document.createElement("span");
   heading.className = "ytp-panel-title";
+  heading.setAttribute("role", "heading");
+  heading.setAttribute("aria-level", "2");
   heading.textContent = title;
-  header.append(back, heading);
+  header.append(backContainer, heading);
   return header;
 }
 
@@ -305,7 +309,8 @@ function createPanel(onChange, onReset) {
       ? [...menu.children].filter((item) => !item.hidden).length
       : 0;
     const measuredMenuHeight = menu?.scrollHeight ?? 0;
-    const menuHeight = measuredMenuHeight > 0 ? measuredMenuHeight : visibleItemCount * 48;
+    const itemHeight = Object.hasOwn(SUBMENUS, currentPage) ? 40 : 48;
+    const menuHeight = measuredMenuHeight > 0 ? measuredMenuHeight : visibleItemCount * itemHeight;
     const playerHeight = root.parentElement?.clientHeight || window.innerHeight;
     const maximumHeight = Math.max(48, playerHeight - 72);
     const height = Math.min(Math.max(48, headerHeight + menuHeight), maximumHeight);
@@ -321,6 +326,7 @@ function createPanel(onChange, onReset) {
 
   const showPage = (name, focus = true) => {
     currentPage = name;
+    root.classList.toggle(`${PANEL_CLASS}__selection-page`, Object.hasOwn(SUBMENUS, name));
     for (const [pageName, page] of pages) page.hidden = pageName !== name;
     updateLayout();
     requestAnimationFrame(() => {
@@ -377,11 +383,7 @@ function createPanel(onChange, onReset) {
       option.setAttribute("aria-checked", "false");
       option.setAttribute("aria-label", label);
       option.tabIndex = 0;
-      option.append(
-        createMenuIcon("m9.2 16.2-4.4-4.4L3.4 13.2 9.2 19 21 7.2l-1.4-1.4-10.4 10.4Z"),
-        createMenuLabel(label),
-        Object.assign(document.createElement("div"), { className: "ytp-menuitem-content" })
-      );
+      option.append(createMenuLabel(label));
       makeInteractive(option, () => {
         root.setSetting(setting, value);
         saveChange({ [setting]: value });
