@@ -542,7 +542,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
   cancelActiveProcessing = cancelProcessing;
 
   const restoreOriginalVideo = (reason, error) => {
-    if (failed) return;
+    if (cancelled || failed) return;
     failed = true;
     clearScheduledResizeRestart();
     stopWatchingSource();
@@ -621,6 +621,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
         }
       },
       onRuntimeError: (error) => {
+        if (cancelled || failed) return;
         diagnostic("レンダリングループの実行時エラー", {
           name: error?.constructor?.name,
           message: error?.message
@@ -637,6 +638,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
         diagnostic("WebGPUデバイスを取得", getDeviceDetails(device));
 
         device.addEventListener("uncapturederror", (event) => {
+          if (cancelled || failed) return;
           diagnostic("WebGPU未捕捉エラーの詳細", {
             name: event.error?.constructor?.name,
             message: event.error?.message

@@ -229,6 +229,7 @@ export async function render({
   });
 
   const fail = (error) => {
+    if (stopped) return;
     if (!firstFrameSettled) {
       firstFrameSettled = true;
       clearTimeout(firstFrameTimeoutId);
@@ -391,25 +392,33 @@ export async function render({
 
       if (outputReadbackBuffer) {
         outputReadbackBuffer.mapAsync(GPUMapMode.READ).then(() => {
+          if (stopped) {
+            outputReadbackBuffer.destroy();
+            return;
+          }
           const rgba = Array.from(new Uint8Array(outputReadbackBuffer.getMappedRange(), 0, 4));
           onGpuOutputSample(rgba);
           outputReadbackBuffer.unmap();
           outputReadbackBuffer.destroy();
         }, (error) => {
           outputReadbackBuffer.destroy();
-          onRuntimeError?.(error);
+          if (!stopped) onRuntimeError?.(error);
         });
       }
 
       if (inputReadbackBuffer) {
         inputReadbackBuffer.mapAsync(GPUMapMode.READ).then(() => {
+          if (stopped) {
+            inputReadbackBuffer.destroy();
+            return;
+          }
           const rgba = Array.from(new Uint8Array(inputReadbackBuffer.getMappedRange(), 0, 4));
           onGpuInputSample(rgba);
           inputReadbackBuffer.unmap();
           inputReadbackBuffer.destroy();
         }, (error) => {
           inputReadbackBuffer.destroy();
-          onRuntimeError?.(error);
+          if (!stopped) onRuntimeError?.(error);
         });
       }
 
@@ -419,6 +428,7 @@ export async function render({
       device.queue.onSubmittedWorkDone().then(() => {
         frameBitmap.close();
         frameInFlight = false;
+        if (stopped) return;
         completedFrames += 1;
         if (!firstFrameSettled) {
           firstFrameSettled = true;
