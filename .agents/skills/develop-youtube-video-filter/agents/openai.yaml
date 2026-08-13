@@ -1,0 +1,4 @@
+interface:
+  display_name: "YouTube Video Filter開発"
+  short_description: "YouTube Video Filter固有の実装と検証を支援"
+  default_prompt: "Use $develop-youtube-video-filter to implement and verify this repository change."
