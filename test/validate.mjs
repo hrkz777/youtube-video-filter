@@ -8,6 +8,7 @@ const popupDocument = await readFile("dist/popup.html", "utf8");
 const popupStyles = await readFile("dist/popup.css", "utf8");
 const popupBundle = await readFile("dist/popup.js", "utf8");
 const icon = await readFile("dist/design/icon.png");
+const contentSource = await readFile("src/content.js", "utf8");
 const rendererSource = await readFile("src/renderer.js", "utf8");
 
 assert.equal(manifest.manifest_version, 3);
@@ -80,6 +81,9 @@ assert.match(contentBundle, /video\.currentSrc !== activeVideoSource/);
 assert.match(contentBundle, /addEventListener\(["']loadstart["']/);
 assert.match(contentBundle, /addEventListener\(["']emptied["']/);
 assert.match(contentBundle, /yt-navigate-start/);
+assert.match(contentBundle, /document\.visibilityState !== ["']visible["']/);
+assert.match(contentBundle, /addEventListener\(["']visibilitychange["']/);
+assert.match(contentSource, /タブが非表示になったためフィルター処理を停止/);
 assert.match(contentBundle, /ytp-youtube-filter-button/);
 assert.match(contentBundle, /ytp-right-controls/);
 assert.match(contentBundle, /controls\.firstElementChild/);
