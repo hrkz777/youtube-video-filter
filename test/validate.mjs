@@ -5,6 +5,7 @@ const manifest = JSON.parse(await readFile("dist/manifest.json", "utf8"));
 const rules = JSON.parse(await readFile("dist/rules.json", "utf8"));
 const contentBundle = await readFile("dist/content.js", "utf8");
 const popupDocument = await readFile("dist/popup.html", "utf8");
+const popupStyles = await readFile("dist/popup.css", "utf8");
 const popupBundle = await readFile("dist/popup.js", "utf8");
 
 assert.equal(manifest.manifest_version, 3);
@@ -95,6 +96,9 @@ assert.match(popupDocument, /フル → リミテッド/);
 assert.match(popupDocument, /id="detailed-logging"/);
 assert.match(popupDocument, /動作が重くなる可能性があります/);
 assert.match(popupDocument, /id="diagnostic-stage"/);
+assert.match(popupDocument, /class="checkbox-group"/);
+assert.match(popupDocument, /id="save-button"/);
+assert.match(popupDocument, />保存<\/button>/);
 assert.match(popupDocument, /A: 入力映像のみ/);
 assert.match(popupDocument, /D: 通常の全処理/);
 for (const profileValue of ["mode-a", "mode-b", "mode-c", "mode-aa", "mode-bb", "mode-ac"]) {
@@ -102,6 +106,9 @@ for (const profileValue of ["mode-a", "mode-b", "mode-c", "mode-aa", "mode-bb", 
 }
 assert.match(popupBundle, /detailedLogging/);
 assert.match(popupBundle, /diagnosticStage/);
+assert.match(popupBundle, /\\u8A2D\\u5B9A\\u3092\\u4FDD\\u5B58\\u3057\\u307E\\u3057\\u305F/);
+assert.match(popupStyles, /border-bottom:\s*1px solid #ccc/);
+assert.match(popupStyles, /background-color:\s*#4caf50/);
 
 assert.equal(contentBundle.includes("eval("), false);
 assert.ok((await stat("dist/content.js")).size < 5 * 1024 * 1024);

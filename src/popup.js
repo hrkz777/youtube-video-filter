@@ -4,6 +4,7 @@ const colorRangeInput = document.querySelector("#color-range-mode");
 const detailedLoggingInput = document.querySelector("#detailed-logging");
 const diagnosticContainer = document.querySelector("#diagnostic-container");
 const diagnosticStageInput = document.querySelector("#diagnostic-stage");
+const saveButton = document.querySelector("#save-button");
 const status = document.querySelector("#status");
 const modeNote = document.querySelector("#mode-note");
 
@@ -38,54 +39,45 @@ async function initialize() {
   modeNote.textContent = MODE_NOTES[settings.profile];
 }
 
-async function saveSettings(changes, message) {
-  enabledInput.disabled = true;
-  profileInput.disabled = true;
-  colorRangeInput.disabled = true;
-  detailedLoggingInput.disabled = true;
-  diagnosticStageInput.disabled = true;
-  await chrome.storage.local.set(changes);
-  status.textContent = message;
-
-  enabledInput.disabled = false;
-  profileInput.disabled = false;
-  colorRangeInput.disabled = false;
-  detailedLoggingInput.disabled = false;
-  diagnosticStageInput.disabled = false;
+function setFormDisabled(disabled) {
+  enabledInput.disabled = disabled;
+  profileInput.disabled = disabled;
+  colorRangeInput.disabled = disabled;
+  detailedLoggingInput.disabled = disabled;
+  diagnosticStageInput.disabled = disabled;
+  saveButton.disabled = disabled;
 }
 
-enabledInput.addEventListener("change", async () => {
-  await saveSettings(
-    { enabled: enabledInput.checked },
-    enabledInput.checked ? "Anime4Kを有効にしました" : "Anime4Kを無効にしました"
-  );
-});
-
-profileInput.addEventListener("change", async () => {
-  modeNote.textContent = MODE_NOTES[profileInput.value];
-  await saveSettings({ profile: profileInput.value }, "処理モードを変更しました");
-});
-
-colorRangeInput.addEventListener("change", async () => {
-  await saveSettings({ colorRangeMode: colorRangeInput.value }, "カラーレンジ変換を変更しました");
-});
-
-detailedLoggingInput.addEventListener("change", async () => {
-  diagnosticContainer.hidden = !detailedLoggingInput.checked;
-  await saveSettings(
-    {
+async function saveSettings() {
+  setFormDisabled(true);
+  try {
+    await chrome.storage.local.set({
+      enabled: enabledInput.checked,
+      profile: profileInput.value,
+      colorRangeMode: colorRangeInput.value,
       detailedLogging: detailedLoggingInput.checked,
       diagnosticStage: detailedLoggingInput.checked ? diagnosticStageInput.value : "full"
-    },
-    detailedLoggingInput.checked ? "詳細ログを有効にしました" : "詳細ログを無効にしました"
-  );
+    });
+    status.style.color = "green";
+    status.textContent = "設定を保存しました";
+  } finally {
+    setFormDisabled(false);
+  }
+}
+
+profileInput.addEventListener("change", () => {
+  modeNote.textContent = MODE_NOTES[profileInput.value];
 });
 
-diagnosticStageInput.addEventListener("change", async () => {
-  await saveSettings(
-    { diagnosticStage: diagnosticStageInput.value },
-    `診断パスを${diagnosticStageInput.selectedOptions[0].textContent}へ変更しました`
-  );
+detailedLoggingInput.addEventListener("change", () => {
+  diagnosticContainer.hidden = !detailedLoggingInput.checked;
+});
+
+saveButton.addEventListener("click", () => {
+  saveSettings().catch((error) => {
+    status.style.color = "red";
+    status.textContent = `設定を保存できませんでした: ${error.message}`;
+  });
 });
 
 initialize().catch((error) => {

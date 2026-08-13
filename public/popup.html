@@ -8,16 +8,15 @@
   </head>
   <body>
     <main>
-      <h1>YouTube Video Filter</h1>
-      <label class="setting">
-        <span>
-          <strong>Anime4K</strong>
-          <small>Mode A（自動アップスケール）</small>
-        </span>
-        <input id="enabled" type="checkbox" role="switch">
-      </label>
-      <label class="profile">
-        <span>処理モード</span>
+      <h3>YouTube Video Filter 設定</h3>
+
+      <div class="checkbox-group">
+        <input id="enabled" type="checkbox">
+        <label for="enabled">Anime4Kを有効にする</label>
+      </div>
+
+      <label for="profile">処理モード</label>
+      <div class="select-group">
         <select id="profile">
           <option value="auto">自動（推奨）</option>
           <option value="mode-a">v4.x Mode A</option>
@@ -28,35 +27,40 @@
           <option value="mode-ac">v4.x Mode A+C（カスタム）</option>
           <option value="v4.1-low-resolution">v4.1 Low resolution experiment</option>
         </select>
-      </label>
-      <label class="profile">
-        <span>カラーレンジ変換</span>
+      </div>
+
+      <label for="color-range-mode">カラーレンジ変換</label>
+      <div class="select-group">
         <select id="color-range-mode">
           <option value="none">変換なし</option>
           <option value="limited-to-full">リミテッド → フル</option>
           <option value="full-to-limited">フル → リミテッド</option>
         </select>
-      </label>
-      <label class="setting secondary-setting">
-        <span>
-          <strong>詳細ログ</strong>
-          <small>問題調査用</small>
-        </span>
-        <input id="detailed-logging" type="checkbox" role="switch">
-      </label>
-      <label id="diagnostic-container" class="profile" hidden>
-        <span>診断パス</span>
+      </div>
+
+      <div id="diagnostic-section">
+        <div class="checkbox-group">
+          <input id="detailed-logging" type="checkbox">
+          <label for="detailed-logging">詳細ログを有効にする</label>
+        </div>
+        <div id="diagnostic-container" hidden>
+          <label for="diagnostic-stage">診断パス</label>
         <select id="diagnostic-stage">
           <option value="full">D: 通常の全処理</option>
           <option value="source">A: 入力映像のみ</option>
           <option value="clamp">B: ClampHighlightsまで</option>
           <option value="restore">C: Restore CNN VLまで</option>
         </select>
-      </label>
-      <p class="warning">詳細ログを有効にすると継続的にフレーム状態を監視するため、動画再生やブラウザの動作が重くなる可能性があります。</p>
-      <p id="status" aria-live="polite"></p>
+        </div>
+        <p class="warning">詳細ログを有効にすると継続的にフレーム状態を監視するため、動画再生やブラウザの動作が重くなる可能性があります。</p>
+      </div>
+
       <p id="mode-note" class="note">自動では安定性を優先し、Mode Aを使用します。</p>
-      <p class="note">設定変更は開いているYouTubeタブへ即時反映されます。WebGPU対応GPUが必要です。</p>
+      <p class="note">保存した設定は開いているYouTubeタブへ即時反映されます。WebGPU対応GPUが必要です。</p>
+
+      <spacer></spacer>
+      <button id="save-button" type="button">保存</button>
+      <div id="status" aria-live="polite"></div>
     </main>
     <script src="popup.js"></script>
   </body>
