@@ -91,11 +91,6 @@ button:disabled {
   opacity: 0.65;
 }
 
-.secondary-button {
-  margin-top: 8px;
-  background-color: #666;
-}
-
 #status {
   min-height: 1em;
   margin-top: 10px;

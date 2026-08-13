@@ -31,7 +31,6 @@ const DEFAULT_SETTINGS = {
   detailedLogging: false,
   diagnosticStage: "full"
 };
-const SETTINGS_KEYS = Object.keys(DEFAULT_SETTINGS);
 let defaultSettings = { ...DEFAULT_SETTINGS };
 let tabSettings = {};
 let currentSettings = { ...DEFAULT_SETTINGS };
@@ -804,18 +803,6 @@ function applySettings(changes, scope = "tab") {
   findYouTubeVideo();
 }
 
-function handleExtensionMessage(message, sender, sendResponse) {
-  if (sender.id !== chrome.runtime.id || !message?.type?.startsWith("youtube-video-filter:")) return;
-  if (message.type === "youtube-video-filter:apply-tab-settings") {
-    tabSettings = Object.fromEntries(
-      SETTINGS_KEYS.filter((key) => Object.hasOwn(message.settings ?? {}, key))
-        .map((key) => [key, message.settings[key]])
-    );
-    applySettings({}, "tab");
-    sendResponse({ settings: currentSettings });
-  }
-}
-
 async function start() {
   const [settings, tabResponse] = await Promise.all([
     chrome.storage.local.get(DEFAULT_SETTINGS),
@@ -882,7 +869,6 @@ async function start() {
   window.addEventListener("yt-navigate-finish", refreshPlayer);
   window.addEventListener("yt-navigate-start", resetPlayerForNavigation);
   document.addEventListener("visibilitychange", handleVisibilityChange);
-  chrome.runtime.onMessage.addListener(handleExtensionMessage);
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
     const relevantChanges = {};
