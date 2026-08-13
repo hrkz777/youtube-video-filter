@@ -10,6 +10,7 @@ const popupBundle = await readFile("dist/popup.js", "utf8");
 const backgroundBundle = await readFile("dist/background.js", "utf8");
 const icon = await readFile("dist/design/icon.png");
 const contentSource = await readFile("src/content.js", "utf8");
+const filterFailureSource = await readFile("src/filter-failure.js", "utf8");
 const rendererSource = await readFile("src/renderer.js", "utf8");
 const playerSettingsSource = await readFile("src/player-settings.js", "utf8");
 
@@ -99,6 +100,9 @@ assert.match(contentBundle, /chrome\.storage\.onChanged/);
 assert.match(contentSource, /let tabSettings = \{\}/);
 assert.match(contentSource, /let overriddenSettingKeys = \[\]/);
 assert.match(contentSource, /chrome\.runtime\.sendMessage/);
+assert.match(contentSource, /restoreOriginalVideo\(compatibilityError\)/);
+assert.match(filterFailureSource, /createFilterFailureRegistry/);
+assert.match(filterFailureSource, /getFilterCompatibilityError/);
 assert.match(backgroundBundle, /youtube-video-filter:get-tab-settings/);
 assert.match(backgroundBundle, /youtube-video-filter:set-tab-settings/);
 assert.match(backgroundBundle, /youtube-video-filter:reset-tab-settings/);
