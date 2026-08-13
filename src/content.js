@@ -17,6 +17,7 @@ import { getSettingsUpdateAction } from "./settings-update.js";
 import { createPlayerSettingsUi } from "./player-settings.js";
 import { createFilterFailureRegistry, getFilterCompatibilityError } from "./filter-failure.js";
 import { disposeWebGpuDevice, subscribeWebGpuDeviceLoss } from "./webgpu-device.js";
+import { shouldRestartForResize } from "./resize-policy.js";
 import { DEFAULT_SETTINGS, normalizeSettings } from "./settings-schema.js";
 
 const CANVAS_CLASS = "youtube-filter-canvas";
@@ -446,18 +447,15 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
   const scheduleResizeRestart = (targetSize) => {
     latestTargetSize = targetSize;
     clearScheduledResizeRestart();
-    if (targetSize.width <= 1 || targetSize.height <= 1
-      || cancelled || failed || activeVideo !== video || !renderTargetSize
-      || (targetSize.width === renderTargetSize.width && targetSize.height === renderTargetSize.height)) {
+    if (cancelled || failed || activeVideo !== video
+      || !shouldRestartForResize(renderTargetSize, targetSize)) {
       return;
     }
     resizeRestartTimeoutId = setTimeout(() => {
       resizeRestartTimeoutId = undefined;
       if (cancelled || failed || activeVideo !== video) return;
       const currentTargetSize = getCanvasSize(video);
-      if (currentTargetSize.width <= 1 || currentTargetSize.height <= 1
-        || (currentTargetSize.width === renderTargetSize.width
-        && currentTargetSize.height === renderTargetSize.height)) {
+      if (!shouldRestartForResize(renderTargetSize, currentTargetSize)) {
         return;
       }
       diagnostic("表示サイズの変更に合わせてフィルターを再初期化", {
