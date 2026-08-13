@@ -250,7 +250,7 @@ function createPanelHeader(title, showMain) {
   backContainer.className = "ytp-panel-back-button-container";
   const back = document.createElement("button");
   back.type = "button";
-  back.className = "ytp-panel-back-button";
+  back.className = "ytp-button ytp-panel-back-button";
   back.setAttribute("aria-label", "前のメニューに戻る");
   makeInteractive(back, showMain);
   backContainer.append(back);

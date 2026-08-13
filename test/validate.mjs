@@ -75,6 +75,7 @@ assert.match(playerSettingsSource, /デフォルトへ戻す/);
 assert.match(playerSettingsSource, /__session-badge/);
 assert.match(playerSettingsSource, /このタブ用設定/);
 assert.match(playerSettingsSource, /ytp-panel-back-button-container/);
+assert.match(playerSettingsSource, /ytp-button ytp-panel-back-button/);
 assert.match(playerSettingsSource, /前のメニューに戻る/);
 assert.match(playerSettingsSource, /PANEL_CLASS}__selection-page/);
 assert.match(playerSettingsSource, /入力FPS/);
