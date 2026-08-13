@@ -14,6 +14,7 @@ import {
 } from "anime4k-webgpu";
 import { render } from "./renderer.js";
 import { createPlayerSettingsUi } from "./player-settings.js";
+import { createFilterFailureRegistry, getFilterCompatibilityError } from "./filter-failure.js";
 
 const CANVAS_CLASS = "youtube-filter-canvas";
 const VIDEO_CLASS = "youtube-filter-source";
@@ -45,7 +46,7 @@ let currentStatistics = {
   outputFps: null,
   dropRate: null
 };
-const failedSources = new WeakMap();
+const filterFailures = createFilterFailureRegistry();
 
 const DIAGNOSTIC_STAGE_NAMES = {
   full: "D: 通常の全処理",
@@ -455,6 +456,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
   let resizeRestartTimeoutId;
   let renderTargetSize;
   let latestTargetSize;
+  const attemptSettings = { enabled, profile, colorRangeMode, diagnosticStage };
   const originalVisibility = video.style.visibility;
   const clearScheduledResizeRestart = () => {
     if (resizeRestartTimeoutId === undefined) return;
@@ -529,7 +531,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
       previousSource: sourceAtInitialization ? getSafeSourceUrl(sourceAtInitialization) : "未設定",
       currentSource: getSafeSourceDescription(video)
     });
-    failedSources.delete(video);
+    filterFailures.clear(video);
     resetStatistics("初期化中");
     cancelProcessing();
     queueMicrotask(findYouTubeVideo);
@@ -541,7 +543,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
     failed = true;
     clearScheduledResizeRestart();
     stopWatchingSource();
-    failedSources.set(video, video.currentSrc);
+    filterFailures.block(video, attemptSettings);
     rendererController?.stop();
     stopCanvasLayoutSync?.();
     canvas?.remove();
@@ -570,9 +572,9 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
     sourceAtInitialization = video.currentSrc;
     diagnostic("動画メタデータを取得", getVideoState(video));
 
-    if (enabled && diagnosticStage === "full" && profile === "v4.1-low-resolution" && video.videoHeight > 360) {
-      updateStatistics({ status: "エラー" });
-      report(`v4.1低解像度モードは360p以下専用です（現在: ${video.videoHeight}p）。元の映像を表示します`);
+    const compatibilityError = getFilterCompatibilityError(video, attemptSettings);
+    if (compatibilityError) {
+      restoreOriginalVideo(compatibilityError);
       return;
     }
 
@@ -768,12 +770,16 @@ function findYouTubeVideo() {
       previousSource: activeVideoSource ? getSafeSourceUrl(activeVideoSource) : "未設定",
       currentSource: getSafeSourceDescription(video)
     });
-    failedSources.delete(video);
+    filterFailures.clear(video);
     resetStatistics("初期化中");
     cancelActiveProcessing?.();
   }
-  const sourcePreviouslyFailed = video && failedSources.get(video) === video.currentSrc;
-  if (video && video !== activeVideo && !sourcePreviouslyFailed) {
+  const filterAttemptBlocked = video && filterFailures.isBlocked(video, currentSettings);
+  if (filterAttemptBlocked) {
+    if (currentStatistics.status !== "エラー") updateStatistics({ status: "エラー" });
+    return;
+  }
+  if (video && video !== activeVideo) {
     applyFilters(video, currentSettings);
   }
 }
@@ -800,7 +806,6 @@ function applySettings(changes, scope = "tab") {
   cancelActiveProcessing = null;
   activeVideo = null;
   activeVideoSource = "";
-  if (video) failedSources.delete(video);
   findYouTubeVideo();
 }
 
