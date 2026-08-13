@@ -18,6 +18,7 @@ import { createPlayerSettingsUi } from "./player-settings.js";
 const CANVAS_CLASS = "youtube-filter-canvas";
 const VIDEO_CLASS = "youtube-filter-source";
 let activeVideo = null;
+let activeVideoSource = "";
 let initializationInProgress = false;
 let detailedLogging = false;
 let cancelActiveProcessing = null;
@@ -88,14 +89,18 @@ function diagnostic(message, details) {
   console.info(`[YouTube Video Filter][詳細] ${message}`, details ?? "");
 }
 
-function getSafeSourceDescription(video) {
-  if (!video.currentSrc) return "未設定";
+function getSafeSourceUrl(sourceUrl) {
+  if (!sourceUrl) return "未設定";
   try {
-    const source = new URL(video.currentSrc);
+    const source = new URL(sourceUrl);
     return `${source.protocol}//${source.host || "ローカル"}`;
   } catch {
     return "解析不能";
   }
+}
+
+function getSafeSourceDescription(video) {
+  return getSafeSourceUrl(video.currentSrc);
 }
 
 function getVideoState(video) {
@@ -383,31 +388,58 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
   let validationScopeActive = false;
   let failed = false;
   let cancelled = false;
+  let sourceAtInitialization = "";
   const originalVisibility = video.style.visibility;
+
+  const stopWatchingSource = () => {
+    video.removeEventListener("loadstart", handleVideoSourceChange);
+    video.removeEventListener("emptied", handleVideoSourceChange);
+  };
 
   const cancelProcessing = () => {
     if (cancelled) return;
     cancelled = true;
+    stopWatchingSource();
     rendererController?.stop();
     stopCanvasLayoutSync?.();
     canvas?.remove();
     video.style.visibility = originalVisibility;
     video.classList.remove(VIDEO_CLASS);
-    if (activeVideo === video) activeVideo = null;
+    if (activeVideo === video) {
+      activeVideo = null;
+      activeVideoSource = "";
+    }
+    if (cancelActiveProcessing === cancelProcessing) cancelActiveProcessing = null;
     diagnostic("現在のフィルター処理を停止");
+  };
+
+  const handleVideoSourceChange = () => {
+    if (cancelled || failed) return;
+    diagnostic("動画ソースの変更を検出", {
+      previousSource: sourceAtInitialization ? getSafeSourceUrl(sourceAtInitialization) : "未設定",
+      currentSource: getSafeSourceDescription(video)
+    });
+    failedSources.delete(video);
+    cancelProcessing();
+    queueMicrotask(findYouTubeVideo);
   };
   cancelActiveProcessing = cancelProcessing;
 
   const restoreOriginalVideo = (reason, error) => {
     if (failed) return;
     failed = true;
+    stopWatchingSource();
     failedSources.set(video, video.currentSrc);
     rendererController?.stop();
     stopCanvasLayoutSync?.();
     canvas?.remove();
     video.style.visibility = originalVisibility;
     video.classList.remove(VIDEO_CLASS);
-    if (activeVideo === video) activeVideo = null;
+    if (activeVideo === video) {
+      activeVideo = null;
+      activeVideoSource = "";
+    }
+    if (cancelActiveProcessing === cancelProcessing) cancelActiveProcessing = null;
     report(`${reason}。元の映像へ戻しました`, error);
   };
 
@@ -422,12 +454,16 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
     video.crossOrigin = "anonymous";
     await waitForVideoMetadata(video);
     if (cancelled) return;
+    sourceAtInitialization = video.currentSrc;
     diagnostic("動画メタデータを取得", getVideoState(video));
 
     if (enabled && diagnosticStage === "full" && profile === "v4.1-low-resolution" && video.videoHeight > 360) {
       report(`v4.1低解像度モードは360p以下専用です（現在: ${video.videoHeight}p）。元の映像を表示します`);
       return;
     }
+
+    video.addEventListener("loadstart", handleVideoSourceChange);
+    video.addEventListener("emptied", handleVideoSourceChange);
 
     ({ canvas, stopLayoutSync: stopCanvasLayoutSync } = createCanvas(video));
 
@@ -519,6 +555,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
     diagnostic("最初のGPU処理完了を確認");
 
     activeVideo = video;
+    activeVideoSource = sourceAtInitialization;
     video.classList.add(VIDEO_CLASS);
     // opacity: 0ではChrome/ANGLEの動画オーバーレイ面が残り、正常に描画された
     // WebGPU Canvasを黒く覆う場合がある。visibilityはレイアウトと動画デコードを
@@ -584,6 +621,14 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
 function findYouTubeVideo() {
   if (!currentSettings.enabled && currentSettings.colorRangeMode === "none") return;
   const video = document.querySelector("#movie_player video.html5-main-video");
+  if (video && video === activeVideo && video.currentSrc !== activeVideoSource) {
+    diagnostic("処理中の動画ソース差し替えを検出", {
+      previousSource: activeVideoSource ? getSafeSourceUrl(activeVideoSource) : "未設定",
+      currentSource: getSafeSourceDescription(video)
+    });
+    failedSources.delete(video);
+    cancelActiveProcessing?.();
+  }
   const sourcePreviouslyFailed = video && failedSources.get(video) === video.currentSrc;
   if (video && video !== activeVideo && !sourcePreviouslyFailed) {
     applyFilters(video, currentSettings);
@@ -605,6 +650,7 @@ function applySettings(changes) {
   cancelActiveProcessing?.();
   cancelActiveProcessing = null;
   activeVideo = null;
+  activeVideoSource = "";
   if (video) failedSources.delete(video);
   findYouTubeVideo();
 }
@@ -636,11 +682,18 @@ async function start() {
     findYouTubeVideo();
     playerSettingsUi.ensure();
   };
+  const resetPlayerForNavigation = () => {
+    cancelActiveProcessing?.();
+    cancelActiveProcessing = null;
+    activeVideo = null;
+    activeVideoSource = "";
+  };
   new MutationObserver(refreshPlayer).observe(document.documentElement, {
     childList: true,
     subtree: true
   });
   window.addEventListener("yt-navigate-finish", refreshPlayer);
+  window.addEventListener("yt-navigate-start", resetPlayerForNavigation);
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
     const relevantChanges = {};
