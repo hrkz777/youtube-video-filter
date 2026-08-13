@@ -3,6 +3,7 @@ import {
   INPUT_TRANSFER_SAMPLE_POINTS,
   areDirectTransferSamplesValid
 } from "./input-transfer.js";
+import { getWebGpuDevice } from "./webgpu-device.js";
 
 const VERTEX_SHADER = /* wgsl */ `
 struct VertexOutput {
@@ -160,10 +161,7 @@ export async function render({
 }) {
   await waitForVideoData(video);
 
-  const adapter = await navigator.gpu.requestAdapter();
-  if (!adapter) throw new Error("WebGPUアダプターを取得できませんでした");
-
-  const device = await adapter.requestDevice();
+  const device = await getWebGpuDevice();
   const context = canvas.getContext("webgpu");
   if (!context) throw new Error("WebGPU Canvasコンテキストを取得できませんでした");
 
@@ -196,7 +194,6 @@ export async function render({
       bridgeCanvas.width = 1;
       bridgeCanvas.height = 1;
     }
-    device.destroy();
   };
 
   try {

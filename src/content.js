@@ -16,6 +16,7 @@ import { render } from "./renderer.js";
 import { getSettingsUpdateAction } from "./settings-update.js";
 import { createPlayerSettingsUi } from "./player-settings.js";
 import { createFilterFailureRegistry, getFilterCompatibilityError } from "./filter-failure.js";
+import { disposeWebGpuDevice, subscribeWebGpuDeviceLoss } from "./webgpu-device.js";
 import { shouldRestartForResize } from "./resize-policy.js";
 import { DEFAULT_SETTINGS, normalizeSettings } from "./settings-schema.js";
 
@@ -428,8 +429,16 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
   let resizeRestartTimeoutId;
   let renderTargetSize;
   let latestTargetSize;
+  let removeUncapturedErrorListener;
+  let unsubscribeDeviceLoss;
   const attemptSettings = { enabled, profile, colorRangeMode, diagnosticStage };
   const originalVisibility = video.style.visibility;
+  const stopWatchingDevice = () => {
+    removeUncapturedErrorListener?.();
+    removeUncapturedErrorListener = undefined;
+    unsubscribeDeviceLoss?.();
+    unsubscribeDeviceLoss = undefined;
+  };
   const clearScheduledResizeRestart = () => {
     if (resizeRestartTimeoutId === undefined) return;
     clearTimeout(resizeRestartTimeoutId);
@@ -481,6 +490,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
     cancelled = true;
     clearScheduledResizeRestart();
     stopWatchingSource();
+    stopWatchingDevice();
     rendererController?.stop();
     stopCanvasLayoutSync?.();
     canvas?.remove();
@@ -513,6 +523,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
     failed = true;
     clearScheduledResizeRestart();
     stopWatchingSource();
+    stopWatchingDevice();
     filterFailures.block(video, attemptSettings);
     rendererController?.stop();
     stopCanvasLayoutSync?.();
@@ -604,15 +615,19 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
         });
         diagnostic("WebGPUデバイスを取得", getDeviceDetails(device));
 
-        device.addEventListener("uncapturederror", (event) => {
+        const handleUncapturedError = (event) => {
           if (cancelled || failed) return;
           diagnostic("WebGPU未捕捉エラーの詳細", {
             name: event.error?.constructor?.name,
             message: event.error?.message
           });
           restoreOriginalVideo("WebGPUで未捕捉エラーが発生しました", event.error);
-        });
-        device.lost.then((information) => {
+        };
+        device.addEventListener("uncapturederror", handleUncapturedError);
+        removeUncapturedErrorListener = () => {
+          device.removeEventListener("uncapturederror", handleUncapturedError);
+        };
+        unsubscribeDeviceLoss = subscribeWebGpuDeviceLoss(device, (information) => {
           if (cancelled || failed) return;
           diagnostic("WebGPUデバイスロストの詳細", information);
           restoreOriginalVideo(`WebGPUデバイスが失われました (${information.reason})`, new Error(information.message));
@@ -880,6 +895,10 @@ async function start() {
   window.addEventListener("yt-navigate-finish", refreshPlayer);
   window.addEventListener("yt-navigate-start", resetPlayerForNavigation);
   document.addEventListener("visibilitychange", handleVisibilityChange);
+  window.addEventListener("pagehide", () => {
+    cancelActiveProcessing?.();
+    disposeWebGpuDevice();
+  }, { once: true });
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
     const relevantChanges = {};
