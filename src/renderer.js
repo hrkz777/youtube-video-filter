@@ -51,7 +51,7 @@ const COLOR_RANGE_MODE_VALUES = {
   "full-to-limited": 2
 };
 const MAX_INPUT_FRAME_DRIFT_SECONDS = 0.1;
-const FRAME_STATS_INTERVAL = 120;
+const FRAME_STATS_INTERVAL_MILLISECONDS = 1000;
 
 function waitForVideoData(video) {
   if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
@@ -181,6 +181,8 @@ export async function render({
   let staleFrames = 0;
   let lastReportedReceivedFrames = 0;
   let lastReportedCompletedFrames = 0;
+  let lastReportedDroppedFrames = 0;
+  let lastReportedStaleFrames = 0;
   let lastStatsTime = performance.now();
   let firstFrameSettled = false;
   let resolveFirstFrame;
@@ -208,10 +210,13 @@ export async function render({
   };
 
   const maybeReportFrameStats = (now, metadata) => {
-    if (!onFrameStats || receivedFrames - lastReportedReceivedFrames < FRAME_STATS_INTERVAL) return;
+    if (!onFrameStats || now - lastStatsTime < FRAME_STATS_INTERVAL_MILLISECONDS) return;
     const elapsedSeconds = Math.max((now - lastStatsTime) / 1000, 0.001);
     const intervalReceivedFrames = receivedFrames - lastReportedReceivedFrames;
     const intervalCompletedFrames = completedFrames - lastReportedCompletedFrames;
+    const intervalDroppedFrames = droppedFrames - lastReportedDroppedFrames;
+    const intervalStaleFrames = staleFrames - lastReportedStaleFrames;
+    const intervalDiscardedFrames = intervalDroppedFrames + intervalStaleFrames;
     onFrameStats({
       receivedFrames,
       submittedFrames,
@@ -219,14 +224,21 @@ export async function render({
       droppedFrames,
       staleFrames,
       dropRate: Number((((droppedFrames + staleFrames) / Math.max(receivedFrames, 1)) * 100).toFixed(1)),
+      approximateInputFps: Number((intervalReceivedFrames / elapsedSeconds).toFixed(1)),
       approximateOutputFps: Number((intervalCompletedFrames / elapsedSeconds).toFixed(1)),
       intervalReceivedFrames,
+      intervalCompletedFrames,
+      intervalDroppedFrames,
+      intervalStaleFrames,
+      intervalDropRate: Number(((intervalDiscardedFrames / Math.max(intervalReceivedFrames, 1)) * 100).toFixed(1)),
       mediaTime: Number(metadata.mediaTime.toFixed(3)),
       currentTime: Number(video.currentTime.toFixed(3)),
       synchronizationOffsetMs: Number(((metadata.mediaTime - video.currentTime) * 1000).toFixed(1))
     });
     lastReportedReceivedFrames = receivedFrames;
     lastReportedCompletedFrames = completedFrames;
+    lastReportedDroppedFrames = droppedFrames;
+    lastReportedStaleFrames = staleFrames;
     lastStatsTime = now;
   };
 
