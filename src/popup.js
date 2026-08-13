@@ -19,15 +19,15 @@ const MODE_NOTES = {
   "v4.1-low-resolution": "実験的な360p以下専用モードです。非常に高いGPU性能とVRAMを必要とします。"
 };
 const DIAGNOSTIC_STAGES = new Set(["full", "source", "clamp", "restore"]);
+const DEFAULT_SETTINGS = {
+  enabled: true,
+  profile: "auto",
+  colorRangeMode: "none",
+  detailedLogging: false,
+  diagnosticStage: "full"
+};
 
-async function initialize() {
-  const settings = await chrome.storage.local.get({
-    enabled: true,
-    profile: "auto",
-    colorRangeMode: "none",
-    detailedLogging: false,
-    diagnosticStage: "full"
-  });
+function setFormValues(settings) {
   enabledInput.checked = settings.enabled;
   profileInput.value = settings.profile;
   colorRangeInput.value = settings.colorRangeMode;
@@ -39,6 +39,10 @@ async function initialize() {
   modeNote.textContent = MODE_NOTES[settings.profile];
 }
 
+async function initialize() {
+  setFormValues(await chrome.storage.local.get(DEFAULT_SETTINGS));
+}
+
 function setFormDisabled(disabled) {
   enabledInput.disabled = disabled;
   profileInput.disabled = disabled;
@@ -48,16 +52,20 @@ function setFormDisabled(disabled) {
   saveButton.disabled = disabled;
 }
 
+function getFormSettings() {
+  return {
+    enabled: enabledInput.checked,
+    profile: profileInput.value,
+    colorRangeMode: colorRangeInput.value,
+    detailedLogging: detailedLoggingInput.checked,
+    diagnosticStage: detailedLoggingInput.checked ? diagnosticStageInput.value : "full"
+  };
+}
+
 async function saveSettings() {
   setFormDisabled(true);
   try {
-    await chrome.storage.local.set({
-      enabled: enabledInput.checked,
-      profile: profileInput.value,
-      colorRangeMode: colorRangeInput.value,
-      detailedLogging: detailedLoggingInput.checked,
-      diagnosticStage: detailedLoggingInput.checked ? diagnosticStageInput.value : "full"
-    });
+    await chrome.storage.local.set(getFormSettings());
     status.style.color = "green";
     status.textContent = "設定を保存しました";
   } finally {

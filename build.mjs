@@ -8,7 +8,7 @@ await mkdir(outputDirectory, { recursive: true });
 await mkdir(`${outputDirectory}/design`, { recursive: true });
 
 await build({
-  entryPoints: ["src/content.js", "src/popup.js"],
+  entryPoints: ["src/background.js", "src/content.js", "src/popup.js"],
   bundle: true,
   outdir: outputDirectory,
   format: "iife",
