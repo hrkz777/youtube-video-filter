@@ -1,5 +1,10 @@
-const enabledInput = document.querySelector("#enabled");
-const profileInput = document.querySelector("#profile");
+import {
+  ANIME4K_OFF_VALUE,
+  getAnime4kSelection,
+  getAnime4kStorageValues
+} from "./anime4k-setting.js";
+
+const anime4kModeInput = document.querySelector("#anime4k-mode");
 const colorRangeInput = document.querySelector("#color-range-mode");
 const detailedLoggingInput = document.querySelector("#detailed-logging");
 const diagnosticContainer = document.querySelector("#diagnostic-container");
@@ -9,6 +14,7 @@ const status = document.querySelector("#status");
 const modeNote = document.querySelector("#mode-note");
 
 const MODE_NOTES = {
+  off: "Anime4Kは適用しません。カラーレンジ変換は個別に使用できます。",
   auto: "自動では安定性を優先し、Mode Aを使用します。",
   "mode-a": "一般的な720p・1080pアニメ向けの復元・アップスケールです。",
   "mode-b": "比較的劣化の少ない720p・1080pアニメ向けです。",
@@ -26,17 +32,18 @@ const DEFAULT_SETTINGS = {
   detailedLogging: false,
   diagnosticStage: "full"
 };
+let preservedProfile = DEFAULT_SETTINGS.profile;
 
 function setFormValues(settings) {
-  enabledInput.checked = settings.enabled;
-  profileInput.value = settings.profile;
+  preservedProfile = settings.profile;
+  anime4kModeInput.value = getAnime4kSelection(settings);
   colorRangeInput.value = settings.colorRangeMode;
   detailedLoggingInput.checked = settings.detailedLogging;
   diagnosticStageInput.value = DIAGNOSTIC_STAGES.has(settings.diagnosticStage)
     ? settings.diagnosticStage
     : "full";
   diagnosticContainer.hidden = !settings.detailedLogging;
-  modeNote.textContent = MODE_NOTES[settings.profile];
+  modeNote.textContent = MODE_NOTES[anime4kModeInput.value];
 }
 
 async function initialize() {
@@ -44,8 +51,7 @@ async function initialize() {
 }
 
 function setFormDisabled(disabled) {
-  enabledInput.disabled = disabled;
-  profileInput.disabled = disabled;
+  anime4kModeInput.disabled = disabled;
   colorRangeInput.disabled = disabled;
   detailedLoggingInput.disabled = disabled;
   diagnosticStageInput.disabled = disabled;
@@ -53,9 +59,9 @@ function setFormDisabled(disabled) {
 }
 
 function getFormSettings() {
+  const anime4kSettings = getAnime4kStorageValues(anime4kModeInput.value, preservedProfile);
   return {
-    enabled: enabledInput.checked,
-    profile: profileInput.value,
+    ...anime4kSettings,
     colorRangeMode: colorRangeInput.value,
     detailedLogging: detailedLoggingInput.checked,
     diagnosticStage: detailedLoggingInput.checked ? diagnosticStageInput.value : "full"
@@ -73,8 +79,11 @@ async function saveSettings() {
   }
 }
 
-profileInput.addEventListener("change", () => {
-  modeNote.textContent = MODE_NOTES[profileInput.value];
+anime4kModeInput.addEventListener("change", () => {
+  if (anime4kModeInput.value !== ANIME4K_OFF_VALUE) {
+    preservedProfile = anime4kModeInput.value;
+  }
+  modeNote.textContent = MODE_NOTES[anime4kModeInput.value];
 });
 
 detailedLoggingInput.addEventListener("change", () => {
