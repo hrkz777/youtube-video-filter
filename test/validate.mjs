@@ -7,10 +7,21 @@ const contentBundle = await readFile("dist/content.js", "utf8");
 const popupDocument = await readFile("dist/popup.html", "utf8");
 const popupStyles = await readFile("dist/popup.css", "utf8");
 const popupBundle = await readFile("dist/popup.js", "utf8");
+const icon = await readFile("dist/design/icon.png");
 
 assert.equal(manifest.manifest_version, 3);
 assert.equal(manifest.name, "YouTube Video Filter");
 assert.equal(manifest.version, "0.2.0");
+assert.deepEqual(manifest.icons, {
+  16: "design/icon.png",
+  32: "design/icon.png",
+  48: "design/icon.png",
+  128: "design/icon.png"
+});
+assert.deepEqual(manifest.action.default_icon, {
+  16: "design/icon.png",
+  32: "design/icon.png"
+});
 assert.deepEqual(manifest.content_scripts[0].matches, ["https://www.youtube.com/*"]);
 assert.deepEqual(manifest.host_permissions, [
   "https://www.youtube.com/*",
@@ -113,5 +124,8 @@ assert.match(popupStyles, /background-color:\s*#4caf50/);
 assert.equal(contentBundle.includes("eval("), false);
 assert.ok((await stat("dist/content.js")).size < 5 * 1024 * 1024);
 await access("dist/THIRD_PARTY_NOTICES.md");
+assert.deepEqual([...icon.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+assert.equal(icon.readUInt32BE(16), 128);
+assert.equal(icon.readUInt32BE(20), 128);
 
 console.log("配布物のManifest、権限、映像フィルター、ライセンス通知を検証しました。");
