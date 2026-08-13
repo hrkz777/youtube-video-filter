@@ -7,6 +7,7 @@ const contentBundle = await readFile("dist/content.js", "utf8");
 const popupDocument = await readFile("dist/popup.html", "utf8");
 const popupStyles = await readFile("dist/popup.css", "utf8");
 const popupBundle = await readFile("dist/popup.js", "utf8");
+const backgroundBundle = await readFile("dist/background.js", "utf8");
 const icon = await readFile("dist/design/icon.png");
 const contentSource = await readFile("src/content.js", "utf8");
 const rendererSource = await readFile("src/renderer.js", "utf8");
@@ -32,6 +33,7 @@ assert.deepEqual(manifest.host_permissions, [
 ]);
 assert.equal(manifest.host_permissions.includes("<all_urls>"), false);
 assert.equal(manifest.permissions.includes("activeTab"), false);
+assert.equal(manifest.background.service_worker, "background.js");
 assert.equal(rules[0].condition.urlFilter, "||googlevideo.com/");
 assert.deepEqual(rules[0].condition.resourceTypes, ["media"]);
 
@@ -91,6 +93,14 @@ assert.match(contentSource, /表示サイズの変更に合わせてフィルタ
 assert.match(contentSource, /previousOutputSize/);
 assert.match(contentSource, /nextOutputSize/);
 assert.match(contentBundle, /chrome\.storage\.onChanged/);
+assert.match(contentSource, /let tabSettings = \{\}/);
+assert.match(contentSource, /youtube-video-filter:apply-tab-settings/);
+assert.match(contentSource, /chrome\.runtime\.sendMessage/);
+assert.match(backgroundBundle, /youtube-video-filter:get-tab-settings/);
+assert.match(backgroundBundle, /youtube-video-filter:set-tab-settings/);
+assert.match(backgroundBundle, /youtube-video-filter:clear-tab-settings/);
+assert.match(backgroundBundle, /chrome\.storage\.session/);
+assert.match(backgroundBundle, /chrome\.tabs\.onRemoved/);
 assert.match(contentBundle, /cancelActiveProcessing/);
 assert.match(contentBundle, /activeVideoSource/);
 assert.match(contentBundle, /video\.currentSrc !== activeVideoSource/);
@@ -157,6 +167,8 @@ assert.match(popupDocument, /動作が重くなる可能性があります/);
 assert.match(popupDocument, /id="diagnostic-stage"/);
 assert.match(popupDocument, /class="checkbox-group"/);
 assert.match(popupDocument, /id="save-button"/);
+assert.match(popupDocument, /id="settings-scope"/);
+assert.match(popupDocument, /id="reset-tab-button"/);
 assert.match(popupDocument, />保存<\/button>/);
 assert.match(popupDocument, /A: 入力映像のみ/);
 assert.match(popupDocument, /D: 通常の全処理/);
@@ -165,6 +177,9 @@ for (const profileValue of ["mode-a", "mode-b", "mode-c", "mode-aa", "mode-bb", 
 }
 assert.match(popupBundle, /detailedLogging/);
 assert.match(popupBundle, /diagnosticStage/);
+assert.match(popupBundle, /chrome\.tabs\.query/);
+assert.match(popupBundle, /chrome\.runtime\.sendMessage/);
+assert.match(popupBundle, /setFormValues\(\{ \.\.\.defaults, \.\.\.response\.settings \}\)/);
 assert.match(popupBundle, /\\u8A2D\\u5B9A\\u3092\\u4FDD\\u5B58\\u3057\\u307E\\u3057\\u305F/);
 assert.match(popupStyles, /border-bottom:\s*1px solid #ccc/);
 assert.match(popupStyles, /background-color:\s*#4caf50/);

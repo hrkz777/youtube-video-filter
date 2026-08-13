@@ -10,6 +10,15 @@
     <main>
       <h3>YouTube Video Filter 設定</h3>
 
+      <label for="settings-scope">設定対象</label>
+      <div class="select-group">
+        <select id="settings-scope">
+          <option value="tab">このYouTubeタブ</option>
+          <option value="defaults">すべてのタブの既定値</option>
+        </select>
+      </div>
+      <p id="scope-note" class="note">このタブだけに適用します。タブを閉じると設定は破棄されます。</p>
+
       <div class="checkbox-group">
         <input id="enabled" type="checkbox">
         <label for="enabled">Anime4Kを有効にする</label>
@@ -60,6 +69,7 @@
 
       <spacer></spacer>
       <button id="save-button" type="button">保存</button>
+      <button id="reset-tab-button" class="secondary-button" type="button">既定値へ戻す</button>
       <div id="status" aria-live="polite"></div>
     </main>
     <script src="popup.js"></script>

@@ -24,13 +24,17 @@ let initializationInProgress = false;
 let detailedLogging = false;
 let cancelActiveProcessing = null;
 let playerSettingsUi = null;
-let currentSettings = {
+const DEFAULT_SETTINGS = {
   enabled: true,
   profile: "auto",
   colorRangeMode: "none",
   detailedLogging: false,
   diagnosticStage: "full"
 };
+const SETTINGS_KEYS = Object.keys(DEFAULT_SETTINGS);
+let defaultSettings = { ...DEFAULT_SETTINGS };
+let tabSettings = {};
+let currentSettings = { ...DEFAULT_SETTINGS };
 let currentStatistics = {
   status: "初期化中",
   inputWidth: null,
@@ -774,9 +778,14 @@ function findYouTubeVideo() {
   }
 }
 
-function applySettings(changes) {
+function applySettings(changes, scope = "tab") {
   const previousSettings = currentSettings;
-  currentSettings = normalizeSettings({ ...currentSettings, ...changes });
+  if (scope === "defaults") {
+    defaultSettings = normalizeSettings({ ...defaultSettings, ...changes });
+  } else {
+    tabSettings = { ...tabSettings, ...changes };
+  }
+  currentSettings = normalizeSettings({ ...defaultSettings, ...tabSettings });
   detailedLogging = currentSettings.detailedLogging;
   updateStatistics({ status: getInactiveStatisticsStatus() });
   playerSettingsUi?.sync();
@@ -795,21 +804,41 @@ function applySettings(changes) {
   findYouTubeVideo();
 }
 
+function handleExtensionMessage(message, sender, sendResponse) {
+  if (sender.id !== chrome.runtime.id || !message?.type?.startsWith("youtube-video-filter:")) return;
+  if (message.type === "youtube-video-filter:apply-tab-settings") {
+    tabSettings = Object.fromEntries(
+      SETTINGS_KEYS.filter((key) => Object.hasOwn(message.settings ?? {}, key))
+        .map((key) => [key, message.settings[key]])
+    );
+    applySettings({}, "tab");
+    sendResponse({ settings: currentSettings });
+  }
+}
+
 async function start() {
-  const settings = await chrome.storage.local.get({
-    enabled: true,
-    profile: "auto",
-    colorRangeMode: "none",
-    detailedLogging: false,
-    diagnosticStage: "full"
-  });
-  currentSettings = normalizeSettings(settings);
+  const [settings, tabResponse] = await Promise.all([
+    chrome.storage.local.get(DEFAULT_SETTINGS),
+    chrome.runtime.sendMessage({ type: "youtube-video-filter:get-tab-settings" })
+      .catch(() => ({ settings: {} }))
+  ]);
+  defaultSettings = normalizeSettings(settings);
+  tabSettings = tabResponse?.settings ?? {};
+  currentSettings = normalizeSettings({ ...defaultSettings, ...tabSettings });
   detailedLogging = currentSettings.detailedLogging;
   resetStatistics(getInactiveStatisticsStatus());
   playerSettingsUi = createPlayerSettingsUi({
     getSettings: () => currentSettings,
     getStatistics: () => currentStatistics,
-    onChange: (changes) => chrome.storage.local.set(changes)
+    onChange: async (changes) => {
+      const response = await chrome.runtime.sendMessage({
+        type: "youtube-video-filter:set-tab-settings",
+        settings: changes
+      });
+      if (!response?.settings) throw new Error(response?.error || "タブ設定を保存できませんでした");
+      tabSettings = response.settings;
+      applySettings({}, "tab");
+    }
   });
 
   diagnostic("詳細ログモードで開始", {
@@ -853,13 +882,14 @@ async function start() {
   window.addEventListener("yt-navigate-finish", refreshPlayer);
   window.addEventListener("yt-navigate-start", resetPlayerForNavigation);
   document.addEventListener("visibilitychange", handleVisibilityChange);
+  chrome.runtime.onMessage.addListener(handleExtensionMessage);
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
     const relevantChanges = {};
     for (const key of ["enabled", "profile", "colorRangeMode", "detailedLogging", "diagnosticStage"]) {
       if (changes[key]) relevantChanges[key] = changes[key].newValue;
     }
-    if (Object.keys(relevantChanges).length > 0) applySettings(relevantChanges);
+    if (Object.keys(relevantChanges).length > 0) applySettings(relevantChanges, "defaults");
   });
   refreshPlayer();
 }
