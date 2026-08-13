@@ -1,3 +1,5 @@
+import { persistOptimisticSetting } from "./optimistic-setting.js";
+
 const BUTTON_CLASS = "ytp-youtube-filter-button";
 const PANEL_CLASS = "ytp-youtube-filter-settings";
 const OPEN_CLASS = "ytp-youtube-filter-settings-open";
@@ -118,6 +120,14 @@ const PLAYER_SETTINGS_CSS = `
     cursor: default;
     opacity: .5;
   }
+  .${PANEL_CLASS} .${PANEL_CLASS}__save-error {
+    color: #ffb4ab;
+    cursor: default;
+    pointer-events: none;
+  }
+  .${PANEL_CLASS} .${PANEL_CLASS}__save-error .ytp-menuitem-label {
+    padding-left: 16px;
+  }
   .${PANEL_CLASS} .${PANEL_CLASS}__statistic {
     cursor: default;
     pointer-events: none;
@@ -224,7 +234,7 @@ function createSubmenuItem(setting, title, iconPath, showSubmenu) {
   return item;
 }
 
-function createResetItem(resetSettings) {
+function createResetItem(resetSettings, showError) {
   const item = document.createElement("div");
   item.className = `ytp-menuitem ${PANEL_CLASS}__reset`;
   item.setAttribute("role", "menuitem");
@@ -241,6 +251,7 @@ function createResetItem(resetSettings) {
     item.setAttribute("aria-disabled", "true");
     Promise.resolve(resetSettings()).catch((error) => {
       item.setAttribute("aria-disabled", "false");
+      showError("デフォルト設定へ戻せませんでした");
       console.error("[YouTube Video Filter] デフォルト設定へ戻せませんでした", error);
     });
   });
@@ -279,7 +290,7 @@ function createStatisticItem(key, title) {
   return item;
 }
 
-function createPanel(onChange, onReset) {
+function createPanel(onChange, onReset, getSettings, getOverriddenKeys) {
   const root = document.createElement("div");
   root.className = `${PANEL_CLASS} ytp-popup ytp-settings-menu`;
   root.dataset.layer = "6";
@@ -299,6 +310,7 @@ function createPanel(onChange, onReset) {
 
   const pages = new Map();
   let currentPage = "main";
+  let errorTimeoutId;
   const updateLayout = () => {
     const activePanel = pages.get(currentPage);
     if (!activePanel || root.hidden) return;
@@ -339,8 +351,14 @@ function createPanel(onChange, onReset) {
     });
   };
   const saveChange = (changes) => {
-    Promise.resolve(onChange(changes)).catch((error) => {
-      console.error("[YouTube Video Filter] プレイヤー内設定を保存できませんでした", error);
+    void persistOptimisticSetting({
+      persist: onChange,
+      changes,
+      onFailure: (error) => {
+        root.syncSettings(getSettings(), getOverriddenKeys());
+        root.showError("設定を保存できませんでした");
+        console.error("[YouTube Video Filter] プレイヤー内設定を保存できませんでした", error);
+      }
     });
   };
 
@@ -357,8 +375,15 @@ function createPanel(onChange, onReset) {
   );
   const profileItem = createSubmenuItem("profile", "処理モード", "M3 17v2h6v-2H3Zm0-6v2h12v-2H3Zm0-6v2h18V5H3Z", showPage);
   const colorItem = createSubmenuItem("colorRangeMode", "カラーレンジ", "M12 3a9 9 0 1 0 0 18V3Zm0 2v14a7 7 0 0 1 0-14Z", showPage);
-  const resetItem = createResetItem(onReset);
+  const resetItem = createResetItem(onReset, (message) => root.showError(message));
   mainMenu.append(anime4kItem, profileItem, colorItem, resetItem);
+  const saveErrorItem = document.createElement("div");
+  saveErrorItem.className = `ytp-menuitem ${PANEL_CLASS}__save-error`;
+  saveErrorItem.setAttribute("role", "alert");
+  saveErrorItem.setAttribute("aria-live", "assertive");
+  saveErrorItem.hidden = true;
+  saveErrorItem.append(createMenuLabel("設定を保存できませんでした"));
+  mainMenu.append(saveErrorItem);
   const statisticsItem = createSubmenuItem(
     "statistics",
     "統計情報",
@@ -462,6 +487,16 @@ function createPanel(onChange, onReset) {
       if (element) element.textContent = value || "—";
     }
   };
+  root.showError = (message) => {
+    clearTimeout(errorTimeoutId);
+    saveErrorItem.querySelector(".ytp-menuitem-label").textContent = message;
+    saveErrorItem.hidden = false;
+    showPage("main", false);
+    errorTimeoutId = setTimeout(() => {
+      saveErrorItem.hidden = true;
+      updateLayout();
+    }, 3000);
+  };
   root.showMain = (focus = true) => showPage("main", focus);
   root.setOpen = (open) => {
     root.hidden = !open;
@@ -533,7 +568,7 @@ export function createPlayerSettingsUi({ getSettings, getOverriddenKeys, getStat
     panel?.remove();
     mountedPlayer = player;
     button = createButton();
-    panel = createPanel(onChange, onReset);
+    panel = createPanel(onChange, onReset, getSettings, getOverriddenKeys);
     button.addEventListener("pointerdown", (event) => event.stopPropagation());
     button.addEventListener("click", (event) => {
       event.stopPropagation();

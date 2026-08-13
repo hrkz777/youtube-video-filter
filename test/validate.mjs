@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { access, readFile, stat } from "node:fs/promises";
+import { persistOptimisticSetting } from "../src/optimistic-setting.js";
 
 const manifest = JSON.parse(await readFile("dist/manifest.json", "utf8"));
 const rules = JSON.parse(await readFile("dist/rules.json", "utf8"));
@@ -13,6 +14,34 @@ const contentSource = await readFile("src/content.js", "utf8");
 const filterFailureSource = await readFile("src/filter-failure.js", "utf8");
 const rendererSource = await readFile("src/renderer.js", "utf8");
 const playerSettingsSource = await readFile("src/player-settings.js", "utf8");
+const optimisticSettingSource = await readFile("src/optimistic-setting.js", "utf8");
+
+{
+  const failures = [];
+  const result = await persistOptimisticSetting({
+    persist: async (changes) => {
+      assert.deepEqual(changes, { enabled: false });
+    },
+    changes: { enabled: false },
+    onFailure: (error) => failures.push(error)
+  });
+  assert.equal(result, true);
+  assert.deepEqual(failures, []);
+}
+
+{
+  const expectedError = new Error("保存失敗");
+  const failures = [];
+  const result = await persistOptimisticSetting({
+    persist: async () => {
+      throw expectedError;
+    },
+    changes: { profile: "mode-c" },
+    onFailure: (error) => failures.push(error)
+  });
+  assert.equal(result, false);
+  assert.deepEqual(failures, [expectedError]);
+}
 
 assert.equal(manifest.manifest_version, 3);
 assert.equal(manifest.name, "YouTube Video Filter");
@@ -75,6 +104,12 @@ assert.match(playerSettingsSource, /統計情報/);
 assert.match(playerSettingsSource, /デフォルトへ戻す/);
 assert.match(playerSettingsSource, /__session-badge/);
 assert.match(playerSettingsSource, /このタブ用設定/);
+assert.match(playerSettingsSource, /root\.syncSettings\(getSettings\(\), getOverriddenKeys\(\)\)/);
+assert.match(playerSettingsSource, /root\.showError\("設定を保存できませんでした"\)/);
+assert.match(playerSettingsSource, /showError\("デフォルト設定へ戻せませんでした"\)/);
+assert.match(playerSettingsSource, /role", "alert"/);
+assert.match(playerSettingsSource, /aria-live", "assertive"/);
+assert.match(optimisticSettingSource, /onFailure\(error\)/);
 assert.match(playerSettingsSource, /ytp-panel-back-button-container/);
 assert.match(playerSettingsSource, /ytp-button ytp-panel-back-button/);
 assert.match(playerSettingsSource, /前のメニューに戻る/);
