@@ -134,6 +134,8 @@ assert.match(contentBundle, /syncStatistics/);
 assert.match(contentSource, /getStatistics:\s*\(\) => currentStatistics/);
 assert.doesNotMatch(contentSource, /onFrameStats:\s*detailedLogging/);
 assert.match(contentBundle, /frameInFlight/);
+assert.match(contentBundle, /direct-video-validated/);
+assert.match(contentBundle, /areDirectTransferSamplesValid/);
 assert.match(contentBundle, /MAX_INPUT_FRAME_DRIFT_SECONDS/);
 assert.match(contentBundle, /synchronizationOffsetMs/);
 assert.match(contentBundle, /visibility\s*=\s*["']hidden["']/);
