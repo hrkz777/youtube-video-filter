@@ -375,7 +375,10 @@ function buildDiagnosticPipeline(stage, device, inputTexture) {
 }
 
 async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosticStage }) {
-  if (initializationInProgress || activeVideo === video || !navigator.gpu) {
+  if (document.visibilityState !== "visible"
+    || initializationInProgress
+    || activeVideo === video
+    || !navigator.gpu) {
     if (!navigator.gpu) report("WebGPUが利用できないため、元の映像を表示します");
     return;
   }
@@ -479,6 +482,9 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
         : undefined,
       onGpuOutputSample: detailedLogging
         ? (rgba) => diagnostic("WebGPU表示直前の中央画素", JSON.stringify(rgba))
+        : undefined,
+      onFrameStats: detailedLogging
+        ? (stats) => diagnostic("Anime4Kフレーム同期", stats)
         : undefined,
       onRuntimeError: (error) => {
         diagnostic("レンダリングループの実行時エラー", {
@@ -619,6 +625,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
 }
 
 function findYouTubeVideo() {
+  if (document.visibilityState !== "visible") return;
   if (!currentSettings.enabled && currentSettings.colorRangeMode === "none") return;
   const video = document.querySelector("#movie_player video.html5-main-video");
   if (video && video === activeVideo && video.currentSrc !== activeVideoSource) {
@@ -688,12 +695,26 @@ async function start() {
     activeVideo = null;
     activeVideoSource = "";
   };
+  const handleVisibilityChange = () => {
+    if (document.visibilityState !== "visible") {
+      diagnostic("タブが非表示になったためフィルター処理を停止");
+      cancelActiveProcessing?.();
+      cancelActiveProcessing = null;
+      activeVideo = null;
+      activeVideoSource = "";
+      return;
+    }
+
+    diagnostic("タブが表示されたため現在の再生位置からフィルター処理を再開");
+    refreshPlayer();
+  };
   new MutationObserver(refreshPlayer).observe(document.documentElement, {
     childList: true,
     subtree: true
   });
   window.addEventListener("yt-navigate-finish", refreshPlayer);
   window.addEventListener("yt-navigate-start", resetPlayerForNavigation);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
     const relevantChanges = {};
