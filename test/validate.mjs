@@ -140,6 +140,7 @@ assert.match(contentBundle, /elementsFromPoint/);
 assert.match(contentBundle, /ResizeObserver/);
 assert.match(contentBundle, /videoBounds\.height/);
 assert.match(contentSource, /FILTER_RESIZE_DEBOUNCE_MILLISECONDS\s*=\s*300/);
+assert.match(contentSource, /shouldRestartForResize/);
 assert.match(contentSource, /function createCanvas\(video, onTargetSizeChange\)/);
 assert.match(contentSource, /onTargetSizeChange\?\.\(targetSize\)/);
 assert.match(contentSource, /scheduleResizeRestart\(latestTargetSize \?\? getCanvasSize\(video\)\)/);
