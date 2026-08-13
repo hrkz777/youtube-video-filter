@@ -5,6 +5,16 @@ const SESSION_SETTINGS_DEFAULTS = {
   colorRangeMode: "none"
 };
 const SETTINGS_KEYS = Object.keys(SESSION_SETTINGS_DEFAULTS);
+const tabOperations = new Map();
+
+function runTabOperation(tabId, operation) {
+  const previousOperation = tabOperations.get(tabId) ?? Promise.resolve();
+  const currentOperation = previousOperation.catch(() => {}).then(operation);
+  tabOperations.set(tabId, currentOperation);
+  return currentOperation.finally(() => {
+    if (tabOperations.get(tabId) === currentOperation) tabOperations.delete(tabId);
+  });
+}
 
 function getStorageKey(tabId) {
   return `${TAB_SETTINGS_PREFIX}${tabId}`;
@@ -69,14 +79,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "youtube-video-filter:get-tab-settings") {
-    getTabSettings(tabId).then((record) => {
+    runTabOperation(tabId, () => getTabSettings(tabId)).then((record) => {
       sendResponse({ settings: record.values, overriddenKeys: record.overriddenKeys });
     }).catch((error) => sendResponse({ error: error.message }));
     return true;
   }
 
   if (message.type === "youtube-video-filter:set-tab-settings") {
-    getTabSettings(tabId).then(async (previousRecord) => {
+    runTabOperation(tabId, async () => {
+      const previousRecord = await getTabSettings(tabId);
       const changes = sanitizeSettings(message.settings);
       const record = {
         values: { ...previousRecord.values, ...changes },
@@ -86,14 +97,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         ])
       };
       await chrome.storage.session.set({ [getStorageKey(tabId)]: record });
+      return record;
+    }).then((record) => {
       sendResponse({ settings: record.values, overriddenKeys: record.overriddenKeys });
     }).catch((error) => sendResponse({ error: error.message }));
     return true;
   }
 
   if (message.type === "youtube-video-filter:reset-tab-settings") {
-    createDefaultSessionRecord().then(async (record) => {
+    runTabOperation(tabId, async () => {
+      const record = await createDefaultSessionRecord();
       await chrome.storage.session.set({ [getStorageKey(tabId)]: record });
+      return record;
+    }).then((record) => {
       sendResponse({ settings: record.values, overriddenKeys: [] });
     }).catch((error) => sendResponse({ error: error.message }));
     return true;
@@ -101,5 +117,5 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
-  chrome.storage.session.remove(getStorageKey(tabId));
+  void runTabOperation(tabId, () => chrome.storage.session.remove(getStorageKey(tabId)));
 });

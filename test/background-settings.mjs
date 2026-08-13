@@ -9,6 +9,8 @@ const localSettings = {
   colorRangeMode: "none"
 };
 const sessionSettings = new Map();
+let delayedSessionSet = false;
+let releaseSessionSet;
 let messageListener;
 let tabRemovedListener;
 
@@ -33,6 +35,10 @@ const chrome = {
         return sessionSettings.has(key) ? { [key]: clone(sessionSettings.get(key)) } : {};
       },
       async set(values) {
+        if (delayedSessionSet) {
+          delayedSessionSet = false;
+          await new Promise((resolve) => { releaseSessionSet = resolve; });
+        }
         for (const [key, value] of Object.entries(values)) sessionSettings.set(key, clone(value));
       },
       async remove(key) {
@@ -104,6 +110,30 @@ const secondTab = await sendMessage("youtube-video-filter:get-tab-settings", 2);
 assert.deepEqual(secondTab, {
   settings: localSettings,
   overriddenKeys: []
+});
+
+delayedSessionSet = true;
+const anime4kUpdate = sendMessage("youtube-video-filter:set-tab-settings", 2, {
+  enabled: true,
+  profile: "mode-c"
+});
+await new Promise((resolve) => setTimeout(resolve, 0));
+const colorRangeUpdate = sendMessage("youtube-video-filter:set-tab-settings", 2, {
+  colorRangeMode: "full-to-limited"
+});
+const independentTabUpdate = await sendMessage("youtube-video-filter:set-tab-settings", 5, {
+  enabled: false
+});
+assert.equal(independentTabUpdate.settings.enabled, false, "別タブの更新は待機しない");
+releaseSessionSet();
+await Promise.all([anime4kUpdate, colorRangeUpdate]);
+assert.deepEqual(sessionSettings.get("tab-settings:2"), {
+  values: {
+    enabled: true,
+    profile: "mode-c",
+    colorRangeMode: "full-to-limited"
+  },
+  overriddenKeys: ["enabled", "profile", "colorRangeMode"]
 });
 
 const reset = await sendMessage("youtube-video-filter:reset-tab-settings", 1);
