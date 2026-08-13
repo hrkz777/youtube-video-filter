@@ -79,6 +79,8 @@ assert.match(playerSettingsSource, /ytp-panel-back-button-container/);
 assert.match(playerSettingsSource, /ytp-button ytp-panel-back-button/);
 assert.match(playerSettingsSource, /前のメニューに戻る/);
 assert.match(playerSettingsSource, /PANEL_CLASS}__selection-page/);
+assert.match(playerSettingsSource, /element\.addEventListener\("click", \(event\) => \{/);
+assert.match(playerSettingsSource, /event\.stopPropagation\(\);\s+activate\(\);/);
 assert.match(playerSettingsSource, /入力FPS/);
 assert.match(playerSettingsSource, /出力FPS/);
 assert.match(playerSettingsSource, /破棄率/);

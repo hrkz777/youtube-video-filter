@@ -145,10 +145,14 @@ function createSvg(pathData, viewBox = "0 0 24 24") {
 }
 
 function makeInteractive(element, activate) {
-  element.addEventListener("click", activate);
+  element.addEventListener("click", (event) => {
+    event.stopPropagation();
+    activate();
+  });
   element.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
+    event.stopPropagation();
     activate();
   });
 }
