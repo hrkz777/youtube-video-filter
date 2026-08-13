@@ -107,6 +107,10 @@ assert.match(playerSettingsSource, /このタブ用設定/);
 assert.match(playerSettingsSource, /root\.syncSettings\(getSettings\(\), getOverriddenKeys\(\)\)/);
 assert.match(playerSettingsSource, /root\.showError\("設定を保存できませんでした"\)/);
 assert.match(playerSettingsSource, /showError\("デフォルト設定へ戻せませんでした"\)/);
+assert.match(
+  playerSettingsSource,
+  /createResetItem\(onReset, \(message\) => \{\s+root\.syncSettings\(getSettings\(\), getOverriddenKeys\(\)\);/
+);
 assert.match(playerSettingsSource, /role", "alert"/);
 assert.match(playerSettingsSource, /aria-live", "assertive"/);
 assert.match(optimisticSettingSource, /onFailure\(error\)/);
