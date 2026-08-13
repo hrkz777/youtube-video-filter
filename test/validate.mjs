@@ -153,6 +153,8 @@ assert.match(rendererSource, /intervalStaleFrames/);
 assert.match(rendererSource, /destroyAnime4kPipelineResources\(pipelines, \[inputTexture\]\)/);
 assert.match(rendererSource, /context\.unconfigure\?\.\(\)/);
 assert.match(rendererSource, /device\.destroy\(\)/);
+assert.match(rendererSource, /GPUBufferUsage\.UNIFORM \| GPUBufferUsage\.COPY_DST/);
+assert.match(rendererSource, /updateColorRangeMode\(nextColorRangeMode\)/);
 assert.match(playerSettingsSource, /createStatisticItem\("status", "状態"\)/);
 assert.match(playerSettingsSource, /createStatisticItem\("resolution", "解像度"\)/);
 assert.match(playerSettingsSource, /statisticsMenu\.setAttribute\("role", "group"\)/);
