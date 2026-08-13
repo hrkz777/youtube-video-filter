@@ -15,13 +15,13 @@ const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 const ANIME4K_MODES = [
   [ANIME4K_OFF_VALUE, "オフ"],
   ["auto", "自動（推奨）"],
-  ["mode-a", "v4.x Mode A"],
-  ["mode-b", "v4.x Mode B"],
-  ["mode-c", "v4.x Mode C"],
-  ["mode-aa", "v4.x Mode A+A"],
-  ["mode-bb", "v4.x Mode B+B"],
-  ["mode-ac", "v4.x Mode A+C"],
-  ["v4.1-low-resolution", "v4.1 Low resolution"]
+  ["mode-a", "Mode A"],
+  ["mode-b", "Mode B"],
+  ["mode-c", "Mode C"],
+  ["mode-aa", "Mode A+A"],
+  ["mode-bb", "Mode B+B"],
+  ["mode-ac", "Mode A+C"],
+  ["v4.1-low-resolution", "Low resolution experiment"]
 ];
 
 const COLOR_RANGE_MODES = [

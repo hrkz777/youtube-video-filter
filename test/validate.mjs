@@ -251,6 +251,8 @@ assert.match(popupDocument, /D: 通常の全処理/);
 for (const profileValue of ["mode-a", "mode-b", "mode-c", "mode-aa", "mode-bb", "mode-ac"]) {
   assert.match(popupDocument, new RegExp(`value="${profileValue}"`));
 }
+assert.doesNotMatch(popupDocument, /<option[^>]*>v4\.(?:x|1)/);
+assert.doesNotMatch(playerSettingsSource, /\["[^\"]+", "v4\.(?:x|1)/);
 assert.match(popupBundle, /detailedLogging/);
 assert.match(popupBundle, /diagnosticStage/);
 assert.match(popupBundle, /preservedProfile/);
