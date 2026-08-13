@@ -3,6 +3,7 @@ import {
   getAnime4kSelection,
   getAnime4kStorageValues
 } from "./anime4k-setting.js";
+import { DEFAULT_SETTINGS, normalizeSettings } from "./settings-schema.js";
 
 const anime4kModeInput = document.querySelector("#anime4k-mode");
 const colorRangeInput = document.querySelector("#color-range-mode");
@@ -24,24 +25,15 @@ const MODE_NOTES = {
   "mode-ac": "Mode Aの出力をMode Cへ渡すカスタム構成です。GPU負荷が高くなります。",
   "v4.1-low-resolution": "実験的な360p以下専用モードです。非常に高いGPU性能とVRAMを必要とします。"
 };
-const DIAGNOSTIC_STAGES = new Set(["full", "source", "clamp", "restore"]);
-const DEFAULT_SETTINGS = {
-  enabled: true,
-  profile: "auto",
-  colorRangeMode: "none",
-  detailedLogging: false,
-  diagnosticStage: "full"
-};
 let preservedProfile = DEFAULT_SETTINGS.profile;
 
 function setFormValues(settings) {
+  settings = normalizeSettings(settings);
   preservedProfile = settings.profile;
   anime4kModeInput.value = getAnime4kSelection(settings);
   colorRangeInput.value = settings.colorRangeMode;
   detailedLoggingInput.checked = settings.detailedLogging;
-  diagnosticStageInput.value = DIAGNOSTIC_STAGES.has(settings.diagnosticStage)
-    ? settings.diagnosticStage
-    : "full";
+  diagnosticStageInput.value = settings.diagnosticStage;
   diagnosticContainer.hidden = !settings.detailedLogging;
   modeNote.textContent = MODE_NOTES[anime4kModeInput.value];
 }
@@ -71,7 +63,7 @@ function getFormSettings() {
 async function saveSettings() {
   setFormDisabled(true);
   try {
-    await chrome.storage.local.set(getFormSettings());
+    await chrome.storage.local.set(normalizeSettings(getFormSettings()));
     status.style.color = "green";
     status.textContent = "設定を保存しました";
   } finally {
