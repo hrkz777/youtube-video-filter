@@ -50,6 +50,8 @@ const COLOR_RANGE_MODE_VALUES = {
   "limited-to-full": 1,
   "full-to-limited": 2
 };
+const MAX_INPUT_FRAME_DRIFT_SECONDS = 0.1;
+const FRAME_STATS_INTERVAL = 120;
 
 function waitForVideoData(video) {
   if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
@@ -82,7 +84,8 @@ export async function render({
   onRuntimeError,
   onInputSample,
   onGpuInputSample,
-  onGpuOutputSample
+  onGpuOutputSample,
+  onFrameStats
 }) {
   await waitForVideoData(video);
 
@@ -170,6 +173,15 @@ export async function render({
   let gpuInputSampleReported = false;
   let gpuOutputSampleReported = false;
   let frameRequestId;
+  let frameInFlight = false;
+  let receivedFrames = 0;
+  let submittedFrames = 0;
+  let completedFrames = 0;
+  let droppedFrames = 0;
+  let staleFrames = 0;
+  let lastReportedReceivedFrames = 0;
+  let lastReportedCompletedFrames = 0;
+  let lastStatsTime = performance.now();
   let firstFrameSettled = false;
   let resolveFirstFrame;
   let rejectFirstFrame;
@@ -195,8 +207,51 @@ export async function render({
     }
   };
 
-  const drawFrame = () => {
+  const maybeReportFrameStats = (now, metadata) => {
+    if (!onFrameStats || receivedFrames - lastReportedReceivedFrames < FRAME_STATS_INTERVAL) return;
+    const elapsedSeconds = Math.max((now - lastStatsTime) / 1000, 0.001);
+    const intervalReceivedFrames = receivedFrames - lastReportedReceivedFrames;
+    const intervalCompletedFrames = completedFrames - lastReportedCompletedFrames;
+    onFrameStats({
+      receivedFrames,
+      submittedFrames,
+      completedFrames,
+      droppedFrames,
+      staleFrames,
+      dropRate: Number((((droppedFrames + staleFrames) / Math.max(receivedFrames, 1)) * 100).toFixed(1)),
+      approximateOutputFps: Number((intervalCompletedFrames / elapsedSeconds).toFixed(1)),
+      intervalReceivedFrames,
+      mediaTime: Number(metadata.mediaTime.toFixed(3)),
+      currentTime: Number(video.currentTime.toFixed(3)),
+      synchronizationOffsetMs: Number(((metadata.mediaTime - video.currentTime) * 1000).toFixed(1))
+    });
+    lastReportedReceivedFrames = receivedFrames;
+    lastReportedCompletedFrames = completedFrames;
+    lastStatsTime = now;
+  };
+
+  const drawFrame = (now, metadata) => {
     if (stopped || !video.isConnected) return;
+    // GPU処理中も動画フレームの通知は監視し続ける。完了後に次に届く
+    // 最新フレームを処理し、中間フレームを待機キューへ積まない。
+    frameRequestId = video.requestVideoFrameCallback(drawFrame);
+    receivedFrames += 1;
+
+    if (frameInFlight) {
+      droppedFrames += 1;
+      maybeReportFrameStats(now, metadata);
+      return;
+    }
+
+    const synchronizationOffset = metadata.mediaTime - video.currentTime;
+    if (Math.abs(synchronizationOffset) > MAX_INPUT_FRAME_DRIFT_SECONDS) {
+      staleFrames += 1;
+      maybeReportFrameStats(now, metadata);
+      return;
+    }
+
+    frameInFlight = true;
+    let frameBitmap;
 
     try {
       // HTMLVideoElementからWebGPUへ直接コピーすると、Chrome/ANGLEの動画デコード
@@ -227,7 +282,7 @@ export async function render({
         }));
         onInputSample(samples);
       }
-      const frameBitmap = bridgeCanvas.transferToImageBitmap();
+      frameBitmap = bridgeCanvas.transferToImageBitmap();
       device.queue.copyExternalImageToTexture(
         { source: frameBitmap },
         { texture: inputTexture, colorSpace: "srgb" },
@@ -270,13 +325,28 @@ export async function render({
           { width: 1, height: 1 }
         );
       }
+
+      let inputReadbackBuffer;
+      if (!gpuInputSampleReported && onGpuInputSample) {
+        gpuInputSampleReported = true;
+        inputReadbackBuffer = device.createBuffer({
+          size: 256,
+          usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+        });
+        encoder.copyTextureToBuffer(
+          {
+            texture: inputTexture,
+            origin: {
+              x: Math.floor(video.videoWidth / 2),
+              y: Math.floor(video.videoHeight / 2)
+            }
+          },
+          { buffer: inputReadbackBuffer, bytesPerRow: 256 },
+          { width: 1, height: 1 }
+        );
+      }
       device.queue.submit([encoder.finish()]);
-      // Dawnが外部画像コピーを遅延実行する可能性があるため、GPU完了まで
-      // ImageBitmapを生存させる。
-      device.queue.onSubmittedWorkDone().then(
-        () => frameBitmap.close(),
-        () => frameBitmap.close()
-      );
+      submittedFrames += 1;
 
       if (outputReadbackBuffer) {
         outputReadbackBuffer.mapAsync(GPUMapMode.READ).then(() => {
@@ -290,50 +360,41 @@ export async function render({
         });
       }
 
-      if (!gpuInputSampleReported && onGpuInputSample) {
-        gpuInputSampleReported = true;
-        const readbackBuffer = device.createBuffer({
-          size: 256,
-          usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
-        });
-        const readbackEncoder = device.createCommandEncoder();
-        readbackEncoder.copyTextureToBuffer(
-          {
-            texture: inputTexture,
-            origin: {
-              x: Math.floor(video.videoWidth / 2),
-              y: Math.floor(video.videoHeight / 2)
-            }
-          },
-          { buffer: readbackBuffer, bytesPerRow: 256 },
-          { width: 1, height: 1 }
-        );
-        device.queue.submit([readbackEncoder.finish()]);
-        readbackBuffer.mapAsync(GPUMapMode.READ).then(() => {
-          const rgba = Array.from(new Uint8Array(readbackBuffer.getMappedRange(), 0, 4));
+      if (inputReadbackBuffer) {
+        inputReadbackBuffer.mapAsync(GPUMapMode.READ).then(() => {
+          const rgba = Array.from(new Uint8Array(inputReadbackBuffer.getMappedRange(), 0, 4));
           onGpuInputSample(rgba);
-          readbackBuffer.unmap();
-          readbackBuffer.destroy();
+          inputReadbackBuffer.unmap();
+          inputReadbackBuffer.destroy();
         }, (error) => {
-          readbackBuffer.destroy();
+          inputReadbackBuffer.destroy();
           onRuntimeError?.(error);
         });
       }
 
-      if (!firstFrameSettled) {
-        device.queue.onSubmittedWorkDone().then(() => {
-          if (firstFrameSettled) return;
+      // Dawnが外部画像コピーを遅延実行する可能性があるため、GPU完了まで
+      // ImageBitmapを生存させる。完了待ちをフレーム受付のゲートとしても使い、
+      // 過負荷時に古いフレームがGPUキューへ蓄積することを防ぐ。
+      device.queue.onSubmittedWorkDone().then(() => {
+        frameBitmap.close();
+        frameInFlight = false;
+        completedFrames += 1;
+        if (!firstFrameSettled) {
           firstFrameSettled = true;
           clearTimeout(firstFrameTimeoutId);
           resolveFirstFrame();
-        }, fail);
-      }
+        }
+      }, (error) => {
+        frameBitmap.close();
+        frameInFlight = false;
+        fail(error);
+      });
     } catch (error) {
+      frameBitmap?.close();
+      frameInFlight = false;
       fail(error);
-      return;
     }
-
-    frameRequestId = video.requestVideoFrameCallback(drawFrame);
+    maybeReportFrameStats(now, metadata);
   };
 
   frameRequestId = video.requestVideoFrameCallback(drawFrame);

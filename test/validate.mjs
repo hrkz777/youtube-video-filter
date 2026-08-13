@@ -8,6 +8,7 @@ const popupDocument = await readFile("dist/popup.html", "utf8");
 const popupStyles = await readFile("dist/popup.css", "utf8");
 const popupBundle = await readFile("dist/popup.js", "utf8");
 const icon = await readFile("dist/design/icon.png");
+const rendererSource = await readFile("src/renderer.js", "utf8");
 
 assert.equal(manifest.manifest_version, 3);
 assert.equal(manifest.name, "YouTube Video Filter");
@@ -64,6 +65,10 @@ assert.match(contentBundle, /onInputSample/);
 assert.match(contentBundle, /copyTextureToBuffer/);
 assert.match(contentBundle, /onGpuInputSample/);
 assert.match(contentBundle, /onGpuOutputSample/);
+assert.match(contentBundle, /onFrameStats/);
+assert.match(contentBundle, /frameInFlight/);
+assert.match(contentBundle, /MAX_INPUT_FRAME_DRIFT_SECONDS/);
+assert.match(contentBundle, /synchronizationOffsetMs/);
 assert.match(contentBundle, /visibility\s*=\s*["']hidden["']/);
 assert.match(contentBundle, /elementsFromPoint/);
 assert.match(contentBundle, /ResizeObserver/);
@@ -83,6 +88,15 @@ assert.match(contentBundle, /ytp-gradient-bottom/);
 assert.match(contentBundle, /classList\.toggle\([^\n]+opening/);
 assert.match(contentBundle, /4 2 17 17/);
 assert.match(contentBundle, /aria-haspopup/);
+assert.match(
+  rendererSource,
+  /const drawFrame = \(now, metadata\) => \{[\s\S]*?requestVideoFrameCallback\(drawFrame\);[\s\S]*?if \(frameInFlight\)/
+);
+assert.match(
+  rendererSource,
+  /if \(frameInFlight\) \{[\s\S]*?droppedFrames \+= 1;[\s\S]*?return;/
+);
+assert.equal(rendererSource.match(/device\.queue\.onSubmittedWorkDone\(\)/g)?.length, 1);
 assert.match(contentBundle, /aria-expanded/);
 assert.match(contentBundle, /menuitemradio/);
 assert.match(contentBundle, /optionSetting/);

@@ -480,6 +480,9 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
       onGpuOutputSample: detailedLogging
         ? (rgba) => diagnostic("WebGPU表示直前の中央画素", JSON.stringify(rgba))
         : undefined,
+      onFrameStats: detailedLogging
+        ? (stats) => diagnostic("Anime4Kフレーム同期", stats)
+        : undefined,
       onRuntimeError: (error) => {
         diagnostic("レンダリングループの実行時エラー", {
           name: error?.constructor?.name,
