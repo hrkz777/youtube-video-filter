@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { render } from "../src/renderer.js";
+import { disposeWebGpuDevice } from "../src/webgpu-device.js";
 
 function createDeferred() {
   let resolve;
@@ -48,6 +49,7 @@ function installWebGpuMocks() {
   });
   const device = {
     destroyed: false,
+    lost: new Promise(() => {}),
     queue: {
       copyExternalImageToTexture() {},
       submit() {},
@@ -236,9 +238,11 @@ async function flushPromises() {
   }
   await flushPromises();
 
-  assert.equal(device.destroyed, true);
+  assert.equal(device.destroyed, false);
   assert.equal(runtimeErrors.length, 0);
   assert.equal(mappedBuffers.every((buffer) => buffer.destroyed), true);
+  disposeWebGpuDevice();
+  assert.equal(device.destroyed, true);
 }
 
 {
@@ -264,6 +268,7 @@ async function flushPromises() {
   assert.equal(runtimeErrors.length, 1);
   assert.equal(runtimeErrors[0].message, "実行中のGPUエラー");
   renderer.stop();
+  disposeWebGpuDevice();
 }
 
 console.log("停止済みRendererの非同期GPUエラー遮断を検証しました。");
