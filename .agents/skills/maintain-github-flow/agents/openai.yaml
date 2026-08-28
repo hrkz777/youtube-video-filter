@@ -1,4 +1,4 @@
 interface:
   display_name: "GitHub Flow保守"
-  short_description: "PR作成、競合解消、CI確認、ブランチ整理の手順を支援"
-  default_prompt: "Use $maintain-github-flow to prepare and maintain this change through pull request review."
+  short_description: "Issue取得、リポジトリ同期、PR、マージ後整理を一貫して支援"
+  default_prompt: "Use $maintain-github-flow to fetch an issue, synchronize main, and prepare its pull request."

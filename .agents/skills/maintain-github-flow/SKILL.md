@@ -1,16 +1,18 @@
 ---
 name: maintain-github-flow
-description: このリポジトリで作業ブランチの開始、コミット、push、Pull Request作成、CI確認、競合解消、マージ後の同期とブランチ整理を行うときに使用する。実装設計の代替には使用しない。
+description: このリポジトリでIssue作業の開始、Issue取得、リポジトリ同期、作業ブランチ作成、コミット、push、Pull Request作成、CI確認、競合解消、マージ後の同期とブランチ整理を行うときに使用する。実装設計の代替には使用しない。
 ---
 
 # GitHub Flow保守
 
 ## 作業開始
 
-1. `scripts/Get-WorkflowStatus.ps1`で作業ツリー、現在ブランチ、未完了PRを確認する。
-2. 作業ツリーがクリーンであることを確認する。
-3. 最新の`origin/main`から目的別ブランチを作る。
+1. Issue対応では`scripts/Start-IssueWork.ps1 -IssueNumber <番号> -BranchName <ブランチ名>`を実行する。
+2. スクリプトにIssue取得、作業ツリー検証、`origin`のfetch、`main`のfast-forward、目的別ブランチ作成を任せる。
+3. Issueを伴わない作業では`scripts/Get-WorkflowStatus.ps1`で状態を確認し、最新の`origin/main`から目的別ブランチを作る。
 4. 1つのPRを単一目的に限定する。
+
+`BranchName`を省略すると、Issue取得と`main`同期だけを実行する。履歴を暗黙にマージしないため、pull相当の同期には`fetch`と`merge --ff-only`を使用する。
 
 ## コミットとPR
 
