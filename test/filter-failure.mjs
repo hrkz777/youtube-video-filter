@@ -8,6 +8,11 @@ const settings = {
   enabled: true,
   profile: "v4.1-low-resolution",
   colorRangeMode: "none",
+  brightness: 0,
+  contrast: 0,
+  saturation: 0,
+  gamma: 100,
+  hue: 0,
   diagnosticStage: "full",
   detailedLogging: false
 };
@@ -37,6 +42,11 @@ assert.equal(
 );
 assert.equal(registry.isBlocked(video, { ...settings, profile: "mode-a" }), false);
 assert.equal(registry.isBlocked(video, { ...settings, colorRangeMode: "limited-to-full" }), false);
+assert.equal(registry.isBlocked(video, { ...settings, brightness: 10 }), false);
+assert.equal(registry.isBlocked(video, { ...settings, contrast: -10 }), false);
+assert.equal(registry.isBlocked(video, { ...settings, saturation: 10 }), false);
+assert.equal(registry.isBlocked(video, { ...settings, gamma: 120 }), false);
+assert.equal(registry.isBlocked(video, { ...settings, hue: -30 }), false);
 assert.equal(registry.isBlocked(video, { ...settings, diagnosticStage: "source" }), false);
 
 video.currentSrc = "blob:https://www.youtube.com/video-b";

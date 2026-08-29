@@ -3,10 +3,22 @@ import {
   getAnime4kSelection,
   getAnime4kStorageValues
 } from "./anime4k-setting.js";
-import { DEFAULT_SETTINGS, normalizeSettings } from "./settings-schema.js";
+import {
+  DEFAULT_SETTINGS,
+  VIDEO_ADJUSTMENT_DEFINITIONS,
+  normalizeSettings
+} from "./settings-schema.js";
 
 const anime4kModeInput = document.querySelector("#anime4k-mode");
 const colorRangeInput = document.querySelector("#color-range-mode");
+const adjustmentSettings = ["brightness", "contrast", "saturation", "gamma", "hue"];
+const adjustmentControls = Object.fromEntries(adjustmentSettings.map((setting) => [
+  setting,
+  {
+    input: document.querySelector(`#${setting}`),
+    output: document.querySelector(`#${setting}-value`)
+  }
+]));
 const detailedLoggingInput = document.querySelector("#detailed-logging");
 const diagnosticContainer = document.querySelector("#diagnostic-container");
 const diagnosticStageInput = document.querySelector("#diagnostic-stage");
@@ -15,7 +27,7 @@ const status = document.querySelector("#status");
 const modeNote = document.querySelector("#mode-note");
 
 const MODE_NOTES = {
-  off: "Anime4Kは適用しません。カラーレンジ変換は個別に使用できます。",
+  off: "Anime4Kは適用しません。カラーレンジ変換と映像調整は個別に使用できます。",
   auto: "自動では安定性を優先し、Mode Aを使用します。",
   "mode-a": "一般的な720p・1080pアニメ向けの復元・アップスケールです。",
   "mode-b": "比較的劣化の少ない720p・1080pアニメ向けです。",
@@ -27,11 +39,37 @@ const MODE_NOTES = {
 };
 let preservedProfile = DEFAULT_SETTINGS.profile;
 
+function formatAdjustmentValue(setting, value) {
+  if (setting === "gamma") return `${value}%`;
+  const unit = setting === "hue" ? "°" : "%";
+  return `${value > 0 ? "+" : ""}${value}${unit}`;
+}
+
+function configureAdjustmentInput(input, output, setting) {
+  const definition = VIDEO_ADJUSTMENT_DEFINITIONS[setting];
+  input.min = String(definition.minimum);
+  input.max = String(definition.maximum);
+  input.step = String(definition.step);
+  input.addEventListener("input", () => {
+    output.textContent = formatAdjustmentValue(setting, Number(input.value));
+  });
+}
+
+for (const setting of adjustmentSettings) {
+  const { input, output } = adjustmentControls[setting];
+  configureAdjustmentInput(input, output, setting);
+}
+
 function setFormValues(settings) {
   settings = normalizeSettings(settings);
   preservedProfile = settings.profile;
   anime4kModeInput.value = getAnime4kSelection(settings);
   colorRangeInput.value = settings.colorRangeMode;
+  for (const setting of adjustmentSettings) {
+    const { input, output } = adjustmentControls[setting];
+    input.value = String(settings[setting]);
+    output.textContent = formatAdjustmentValue(setting, settings[setting]);
+  }
   detailedLoggingInput.checked = settings.detailedLogging;
   diagnosticStageInput.value = settings.diagnosticStage;
   diagnosticContainer.hidden = !settings.detailedLogging;
@@ -45,6 +83,7 @@ async function initialize() {
 function setFormDisabled(disabled) {
   anime4kModeInput.disabled = disabled;
   colorRangeInput.disabled = disabled;
+  for (const { input } of Object.values(adjustmentControls)) input.disabled = disabled;
   detailedLoggingInput.disabled = disabled;
   diagnosticStageInput.disabled = disabled;
   saveButton.disabled = disabled;
@@ -55,6 +94,9 @@ function getFormSettings() {
   return {
     ...anime4kSettings,
     colorRangeMode: colorRangeInput.value,
+    ...Object.fromEntries(adjustmentSettings.map((setting) => (
+      [setting, Number(adjustmentControls[setting].input.value)]
+    ))),
     detailedLogging: detailedLoggingInput.checked,
     diagnosticStage: detailedLoggingInput.checked ? diagnosticStageInput.value : "full"
   };

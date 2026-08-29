@@ -14,12 +14,19 @@ import {
   Original
 } from "anime4k-webgpu";
 import { render } from "./renderer.js";
-import { getSettingsUpdateAction } from "./settings-update.js";
+import {
+  getRemainingPreviewSettings,
+  getSettingsUpdateAction
+} from "./settings-update.js";
 import { createPlayerSettingsUi } from "./player-settings.js";
 import { createFilterFailureRegistry, getFilterCompatibilityError } from "./filter-failure.js";
 import { disposeWebGpuDevice, subscribeWebGpuDeviceLoss } from "./webgpu-device.js";
 import { shouldRestartForResize } from "./resize-policy.js";
-import { DEFAULT_SETTINGS, normalizeSettings } from "./settings-schema.js";
+import {
+  DEFAULT_SETTINGS,
+  hasVideoAdjustments,
+  normalizeSettings
+} from "./settings-schema.js";
 
 const CANVAS_CLASS = "youtube-filter-canvas";
 const VIDEO_CLASS = "youtube-filter-source";
@@ -33,6 +40,7 @@ let cancelActiveProcessing = null;
 let playerSettingsUi = null;
 let defaultSettings = { ...DEFAULT_SETTINGS };
 let tabSettings = {};
+let previewSettings = {};
 let overriddenSettingKeys = [];
 let currentSettings = { ...DEFAULT_SETTINGS };
 let currentStatistics = {
@@ -46,6 +54,10 @@ let currentStatistics = {
   dropRate: null
 };
 const filterFailures = createFilterFailureRegistry();
+
+const isDisplayProcessingActive = (settings) => settings.enabled
+  || settings.colorRangeMode !== "none"
+  || hasVideoAdjustments(settings);
 
 const DIAGNOSTIC_STAGE_NAMES = {
   full: "D: 通常の全処理",
@@ -99,7 +111,7 @@ function resetStatistics(status) {
 }
 
 function getInactiveStatisticsStatus() {
-  return currentSettings.enabled || currentSettings.colorRangeMode !== "none"
+  return isDisplayProcessingActive(currentSettings)
     ? "初期化中"
     : "無効";
 }
@@ -392,7 +404,17 @@ function buildDiagnosticPipeline(stage, device, inputTexture) {
   return [clampHighlights, restore];
 }
 
-async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosticStage }) {
+async function applyFilters(video, {
+  enabled,
+  profile,
+  colorRangeMode,
+  brightness,
+  contrast,
+  saturation,
+  gamma,
+  hue,
+  diagnosticStage
+}) {
   if (document.visibilityState !== "visible"
     || initializationInProgress
     || activeVideo === video
@@ -420,7 +442,17 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
   let latestTargetSize;
   let removeUncapturedErrorListener;
   let unsubscribeDeviceLoss;
-  const attemptSettings = { enabled, profile, colorRangeMode, diagnosticStage };
+  const attemptSettings = {
+    enabled,
+    profile,
+    colorRangeMode,
+    brightness,
+    contrast,
+    saturation,
+    gamma,
+    hue,
+    diagnosticStage
+  };
   const originalVisibility = video.style.visibility;
   const stopWatchingDevice = () => {
     removeUncapturedErrorListener?.();
@@ -566,6 +598,11 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
       video,
       canvas,
       colorRangeMode,
+      brightness,
+      contrast,
+      saturation,
+      gamma,
+      hue,
       onInputSample: detailedLogging
         ? (samples) => diagnostic("2D Canvas中継後の入力画素", JSON.stringify(samples))
         : undefined,
@@ -635,6 +672,11 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
           anime4kEnabled: enabled,
           profile,
           colorRangeMode,
+          brightness,
+          contrast,
+          saturation,
+          gamma,
+          hue,
           diagnosticStage: DIAGNOSTIC_STAGE_NAMES[diagnosticStage],
           pipelineCount: pipelines.length,
           inputTextureFormat: "rgba8unorm",
@@ -672,6 +714,10 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
     await waitForGpu(renderingDevice);
     if (failed || cancelled) return;
     diagnostic("最初のGPU処理完了を確認");
+
+    if (!rendererController.updateDisplaySettings(currentSettings)) {
+      throw new Error("最新の表示設定をRendererへ反映できませんでした");
+    }
 
     activeVideo = video;
     activeVideoSource = sourceAtInitialization;
@@ -723,6 +769,11 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
       appliedFilters.push(`Anime4K ${appliedMode}`);
     }
     if (colorRangeMode !== "none") appliedFilters.push(`色レンジ ${COLOR_RANGE_NAMES[colorRangeMode]}`);
+    if (brightness !== 0) appliedFilters.push(`明るさ ${brightness > 0 ? "+" : ""}${brightness}%`);
+    if (contrast !== 0) appliedFilters.push(`コントラスト ${contrast > 0 ? "+" : ""}${contrast}%`);
+    if (saturation !== 0) appliedFilters.push(`彩度 ${saturation > 0 ? "+" : ""}${saturation}%`);
+    if (gamma !== 100) appliedFilters.push(`ガンマ ${gamma}%`);
+    if (hue !== 0) appliedFilters.push(`色相 ${hue > 0 ? "+" : ""}${hue}°`);
     report(`${appliedFilters.join(" / ")}の最初のGPU処理が完了しました (${video.videoWidth}x${video.videoHeight} → ${canvas.width}x${canvas.height})`);
   } catch (error) {
     if (validationScopeActive && renderingDevice) {
@@ -734,7 +785,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
     if (cancelled && cancelActiveProcessing === cancelProcessing) {
       cancelActiveProcessing = null;
     }
-    if ((currentSettings.enabled || currentSettings.colorRangeMode !== "none") && !activeVideo) {
+    if (isDisplayProcessingActive(currentSettings) && !activeVideo) {
       queueMicrotask(findYouTubeVideo);
     }
   }
@@ -742,7 +793,7 @@ async function applyFilters(video, { enabled, profile, colorRangeMode, diagnosti
 
 function findYouTubeVideo() {
   if (document.visibilityState !== "visible") return;
-  if (!currentSettings.enabled && currentSettings.colorRangeMode === "none") return;
+  if (!isDisplayProcessingActive(currentSettings)) return;
   const video = document.querySelector("#movie_player video.html5-main-video");
   if (video && video === activeVideo && video.currentSrc !== activeVideoSource) {
     diagnostic("処理中の動画ソース差し替えを検出", {
@@ -765,12 +816,15 @@ function findYouTubeVideo() {
 
 function applySettings(changes, scope = "tab") {
   const previousSettings = currentSettings;
-  if (scope === "defaults") {
+  if (scope === "preview") {
+    currentSettings = normalizeSettings({ ...currentSettings, ...changes });
+  } else if (scope === "defaults") {
     defaultSettings = normalizeSettings({ ...defaultSettings, ...changes });
+    currentSettings = normalizeSettings({ ...defaultSettings, ...tabSettings });
   } else {
     tabSettings = { ...tabSettings, ...changes };
+    currentSettings = normalizeSettings({ ...defaultSettings, ...tabSettings });
   }
-  currentSettings = normalizeSettings({ ...defaultSettings, ...tabSettings });
   detailedLogging = currentSettings.detailedLogging;
   playerSettingsUi?.sync();
 
@@ -785,10 +839,27 @@ function applySettings(changes, scope = "tab") {
     Boolean(activeRendererController)
   );
   if (updateAction === "none") return;
-  if (updateAction === "update-color-range"
-    && activeRendererController?.updateColorRangeMode(currentSettings.colorRangeMode)) {
-    diagnostic("カラーレンジ設定を再初期化せず更新", {
-      colorRangeMode: currentSettings.colorRangeMode
+  if (updateAction === "update-display-settings"
+    && activeRendererController?.updateDisplaySettings(currentSettings)) {
+    diagnostic("表示設定を再初期化せず更新", {
+      colorRangeMode: currentSettings.colorRangeMode,
+      brightness: currentSettings.brightness,
+      contrast: currentSettings.contrast,
+      saturation: currentSettings.saturation,
+      gamma: currentSettings.gamma,
+      hue: currentSettings.hue
+    });
+    return;
+  }
+  if (scope === "preview"
+    && updateAction === "update-display-settings"
+    && initializationInProgress) {
+    diagnostic("初期化完了後に最新の表示設定を反映", {
+      brightness: currentSettings.brightness,
+      contrast: currentSettings.contrast,
+      saturation: currentSettings.saturation,
+      gamma: currentSettings.gamma,
+      hue: currentSettings.hue
     });
     return;
   }
@@ -804,6 +875,14 @@ function applySettings(changes, scope = "tab") {
   }
   resetStatistics("初期化中");
   findYouTubeVideo();
+}
+
+function settlePreviewSettings(changes) {
+  previewSettings = getRemainingPreviewSettings(previewSettings, changes);
+  applySettings({}, "tab");
+  if (Object.keys(previewSettings).length > 0) {
+    applySettings(previewSettings, "preview");
+  }
 }
 
 async function start() {
@@ -823,14 +902,23 @@ async function start() {
     getOverriddenKeys: () => overriddenSettingKeys,
     getStatistics: () => currentStatistics,
     onChange: async (changes) => {
-      const response = await chrome.runtime.sendMessage({
-        type: "youtube-video-filter:set-tab-settings",
-        settings: changes
-      });
-      if (!response?.settings) throw new Error(response?.error || "タブ設定を保存できませんでした");
-      tabSettings = response.settings;
-      overriddenSettingKeys = response.overriddenKeys ?? [];
-      applySettings({}, "tab");
+      try {
+        const response = await chrome.runtime.sendMessage({
+          type: "youtube-video-filter:set-tab-settings",
+          settings: changes
+        });
+        if (!response?.settings) throw new Error(response?.error || "タブ設定を保存できませんでした");
+        tabSettings = response.settings;
+        overriddenSettingKeys = response.overriddenKeys ?? [];
+        settlePreviewSettings(changes);
+      } catch (error) {
+        settlePreviewSettings(changes);
+        throw error;
+      }
+    },
+    onPreview: (changes) => {
+      previewSettings = { ...previewSettings, ...changes };
+      applySettings(changes, "preview");
     },
     onReset: async () => {
       const response = await chrome.runtime.sendMessage({
@@ -838,6 +926,7 @@ async function start() {
       });
       if (!response?.settings) throw new Error(response?.error || "デフォルト設定へ戻せませんでした");
       tabSettings = response.settings;
+      previewSettings = {};
       overriddenSettingKeys = [];
       applySettings({}, "tab");
     }
@@ -846,6 +935,11 @@ async function start() {
   diagnostic("詳細ログモードで開始", {
     profile: currentSettings.profile,
     colorRangeMode: currentSettings.colorRangeMode,
+    brightness: currentSettings.brightness,
+    contrast: currentSettings.contrast,
+    saturation: currentSettings.saturation,
+    gamma: currentSettings.gamma,
+    hue: currentSettings.hue,
     diagnosticStage: DIAGNOSTIC_STAGE_NAMES[currentSettings.diagnosticStage],
     page: `${location.origin}${location.pathname}`,
     webGpuAvailable: Boolean(navigator.gpu)
@@ -891,7 +985,18 @@ async function start() {
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
     const relevantChanges = {};
-    for (const key of ["enabled", "profile", "colorRangeMode", "detailedLogging", "diagnosticStage"]) {
+    for (const key of [
+      "enabled",
+      "profile",
+      "colorRangeMode",
+      "brightness",
+      "contrast",
+      "saturation",
+      "gamma",
+      "hue",
+      "detailedLogging",
+      "diagnosticStage"
+    ]) {
       if (changes[key]) relevantChanges[key] = changes[key].newValue;
     }
     if (Object.keys(relevantChanges).length > 0) applySettings(relevantChanges, "defaults");
