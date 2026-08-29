@@ -14,7 +14,10 @@ import {
   Original
 } from "anime4k-webgpu";
 import { render } from "./renderer.js";
-import { getSettingsUpdateAction } from "./settings-update.js";
+import {
+  getRemainingPreviewSettings,
+  getSettingsUpdateAction
+} from "./settings-update.js";
 import { createPlayerSettingsUi } from "./player-settings.js";
 import { createFilterFailureRegistry, getFilterCompatibilityError } from "./filter-failure.js";
 import { disposeWebGpuDevice, subscribeWebGpuDeviceLoss } from "./webgpu-device.js";
@@ -33,6 +36,7 @@ let cancelActiveProcessing = null;
 let playerSettingsUi = null;
 let defaultSettings = { ...DEFAULT_SETTINGS };
 let tabSettings = {};
+let previewSettings = {};
 let overriddenSettingKeys = [];
 let currentSettings = { ...DEFAULT_SETTINGS };
 let currentStatistics = {
@@ -696,6 +700,10 @@ async function applyFilters(video, {
     if (failed || cancelled) return;
     diagnostic("最初のGPU処理完了を確認");
 
+    if (!rendererController.updateDisplaySettings(currentSettings)) {
+      throw new Error("最新の表示設定をRendererへ反映できませんでした");
+    }
+
     activeVideo = video;
     activeVideoSource = sourceAtInitialization;
     activeRendererController = rendererController;
@@ -790,12 +798,15 @@ function findYouTubeVideo() {
 
 function applySettings(changes, scope = "tab") {
   const previousSettings = currentSettings;
-  if (scope === "defaults") {
+  if (scope === "preview") {
+    currentSettings = normalizeSettings({ ...currentSettings, ...changes });
+  } else if (scope === "defaults") {
     defaultSettings = normalizeSettings({ ...defaultSettings, ...changes });
+    currentSettings = normalizeSettings({ ...defaultSettings, ...tabSettings });
   } else {
     tabSettings = { ...tabSettings, ...changes };
+    currentSettings = normalizeSettings({ ...defaultSettings, ...tabSettings });
   }
-  currentSettings = normalizeSettings({ ...defaultSettings, ...tabSettings });
   detailedLogging = currentSettings.detailedLogging;
   playerSettingsUi?.sync();
 
@@ -819,6 +830,15 @@ function applySettings(changes, scope = "tab") {
     });
     return;
   }
+  if (scope === "preview"
+    && updateAction === "update-display-settings"
+    && initializationInProgress) {
+    diagnostic("初期化完了後に最新の表示設定を反映", {
+      brightness: currentSettings.brightness,
+      contrast: currentSettings.contrast
+    });
+    return;
+  }
 
   cancelActiveProcessing?.();
   cancelActiveProcessing = null;
@@ -831,6 +851,14 @@ function applySettings(changes, scope = "tab") {
   }
   resetStatistics("初期化中");
   findYouTubeVideo();
+}
+
+function settlePreviewSettings(changes) {
+  previewSettings = getRemainingPreviewSettings(previewSettings, changes);
+  applySettings({}, "tab");
+  if (Object.keys(previewSettings).length > 0) {
+    applySettings(previewSettings, "preview");
+  }
 }
 
 async function start() {
@@ -850,14 +878,23 @@ async function start() {
     getOverriddenKeys: () => overriddenSettingKeys,
     getStatistics: () => currentStatistics,
     onChange: async (changes) => {
-      const response = await chrome.runtime.sendMessage({
-        type: "youtube-video-filter:set-tab-settings",
-        settings: changes
-      });
-      if (!response?.settings) throw new Error(response?.error || "タブ設定を保存できませんでした");
-      tabSettings = response.settings;
-      overriddenSettingKeys = response.overriddenKeys ?? [];
-      applySettings({}, "tab");
+      try {
+        const response = await chrome.runtime.sendMessage({
+          type: "youtube-video-filter:set-tab-settings",
+          settings: changes
+        });
+        if (!response?.settings) throw new Error(response?.error || "タブ設定を保存できませんでした");
+        tabSettings = response.settings;
+        overriddenSettingKeys = response.overriddenKeys ?? [];
+        settlePreviewSettings(changes);
+      } catch (error) {
+        settlePreviewSettings(changes);
+        throw error;
+      }
+    },
+    onPreview: (changes) => {
+      previewSettings = { ...previewSettings, ...changes };
+      applySettings(changes, "preview");
     },
     onReset: async () => {
       const response = await chrome.runtime.sendMessage({
@@ -865,6 +902,7 @@ async function start() {
       });
       if (!response?.settings) throw new Error(response?.error || "デフォルト設定へ戻せませんでした");
       tabSettings = response.settings;
+      previewSettings = {};
       overriddenSettingKeys = [];
       applySettings({}, "tab");
     }

@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { getSettingsUpdateAction } from "../src/settings-update.js";
+import {
+  getRemainingPreviewSettings,
+  getSettingsUpdateAction
+} from "../src/settings-update.js";
 
 const base = {
   enabled: true,
@@ -15,6 +18,23 @@ assert.equal(getSettingsUpdateAction(base, { ...base }, true), "none");
 assert.equal(
   getSettingsUpdateAction(base, { ...base, detailedLogging: true }, true),
   "none"
+);
+
+assert.deepEqual(
+  getRemainingPreviewSettings(
+    { brightness: 20, contrast: -10 },
+    { brightness: 10 }
+  ),
+  { brightness: 20, contrast: -10 },
+  "古い保存応答では新しいプレビューを破棄しない"
+);
+assert.deepEqual(
+  getRemainingPreviewSettings(
+    { brightness: 20, contrast: -10 },
+    { brightness: 20 }
+  ),
+  { contrast: -10 },
+  "保存された値と一致するプレビューだけを確定扱いにする"
 );
 assert.equal(
   getSettingsUpdateAction(base, { ...base, colorRangeMode: "limited-to-full" }, true),

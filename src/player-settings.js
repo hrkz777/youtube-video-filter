@@ -304,7 +304,7 @@ function createStatisticItem(key, title) {
   return item;
 }
 
-function createPanel(onChange, onReset, getSettings, getOverriddenKeys) {
+function createPanel(onChange, onPreview, onReset, getSettings, getOverriddenKeys) {
   const root = document.createElement("div");
   root.className = `${PANEL_CLASS} ytp-popup ytp-settings-menu`;
   root.dataset.layer = "6";
@@ -476,7 +476,11 @@ function createPanel(onChange, onReset, getSettings, getOverriddenKeys) {
     input.setAttribute("aria-label", label);
     const output = document.createElement("output");
     output.dataset.adjustmentValue = setting;
-    input.addEventListener("input", () => root.setAdjustmentSetting(setting, Number(input.value)));
+    input.addEventListener("input", () => {
+      const value = Number(input.value);
+      root.setAdjustmentSetting(setting, value);
+      onPreview({ [setting]: value });
+    });
     input.addEventListener("change", () => saveChange({ [setting]: Number(input.value) }));
     controls.append(input, output);
     item.append(createMenuLabel(label), controls);
@@ -608,7 +612,14 @@ function createButton() {
   return button;
 }
 
-export function createPlayerSettingsUi({ getSettings, getOverriddenKeys, getStatistics, onChange, onReset }) {
+export function createPlayerSettingsUi({
+  getSettings,
+  getOverriddenKeys,
+  getStatistics,
+  onChange,
+  onPreview,
+  onReset
+}) {
   if (!document.getElementById(STYLE_ID)) {
     const style = document.createElement("style");
     style.id = STYLE_ID;
@@ -651,7 +662,7 @@ export function createPlayerSettingsUi({ getSettings, getOverriddenKeys, getStat
     panel?.remove();
     mountedPlayer = player;
     button = createButton();
-    panel = createPanel(onChange, onReset, getSettings, getOverriddenKeys);
+    panel = createPanel(onChange, onPreview, onReset, getSettings, getOverriddenKeys);
     button.addEventListener("pointerdown", (event) => event.stopPropagation());
     button.addEventListener("click", (event) => {
       event.stopPropagation();

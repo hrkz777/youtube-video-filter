@@ -21,3 +21,11 @@ export function getSettingsUpdateAction(previous, current, canUpdateDisplaySetti
   }
   return "none";
 }
+
+export function getRemainingPreviewSettings(previewSettings, settledChanges) {
+  return Object.fromEntries(
+    Object.entries(previewSettings).filter(
+      ([key, value]) => !Object.hasOwn(settledChanges, key) || settledChanges[key] !== value
+    )
+  );
+}

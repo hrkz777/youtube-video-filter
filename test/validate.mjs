@@ -208,6 +208,10 @@ assert.doesNotMatch(rendererSource, /device\.destroy\(\)/);
 assert.match(webGpuDeviceSource, /record\?\.device\.destroy\(\)/);
 assert.match(rendererSource, /const fail = \(error\) => \{\s+if \(stopped\) return;/);
 assert.match(contentSource, /onRuntimeError: \(error\) => \{\s+if \(cancelled \|\| failed\) return;/);
+assert.match(contentSource, /previewSettings = \{ \.\.\.previewSettings, \.\.\.changes \}/);
+assert.match(contentSource, /function settlePreviewSettings\(changes\)/);
+assert.match(contentSource, /getRemainingPreviewSettings\(previewSettings, changes\)/);
+assert.match(contentSource, /rendererController\.updateDisplaySettings\(currentSettings\)/);
 assert.match(contentSource, /const handleUncapturedError = \(event\) => \{\s+if \(cancelled \|\| failed\) return;/);
 assert.match(contentSource, /removeEventListener\("uncapturederror", handleUncapturedError\)/);
 assert.match(contentSource, /const restoreOriginalVideo = \(reason, error\) => \{\s+if \(cancelled \|\| failed\) return;/);
@@ -217,6 +221,11 @@ assert.match(rendererSource, /size:\s*16/);
 assert.match(rendererSource, /displaySettings\.brightness/);
 assert.match(rendererSource, /displaySettings\.contrast/);
 assert.match(playerSettingsSource, /createStatisticItem\("status", "状態"\)/);
+assert.match(
+  playerSettingsSource,
+  /input\.addEventListener\("input",[\s\S]*?onPreview\(\{ \[setting\]: value \}\)/
+);
+assert.match(playerSettingsSource, /input\.addEventListener\("change", \(\) => saveChange/);
 assert.match(playerSettingsSource, /createStatisticItem\("resolution", "解像度"\)/);
 assert.match(playerSettingsSource, /statisticsMenu\.setAttribute\("role", "group"\)/);
 assert.doesNotMatch(playerSettingsSource, /chrome\.storage/);
