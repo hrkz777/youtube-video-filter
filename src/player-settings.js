@@ -20,7 +20,7 @@ const ANIME4K_MODES = [
   ["mode-c", "Mode C"],
   ["mode-aa", "Mode A+A"],
   ["mode-bb", "Mode B+B"],
-  ["mode-ac", "Mode A+C"],
+  ["mode-ca", "Mode C+A"],
   ["v4.1-low-resolution", "Low resolution experiment"]
 ];
 
