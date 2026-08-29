@@ -5,7 +5,10 @@ import {
   getAnime4kSelection,
   isAnime4kOverridden
 } from "./anime4k-setting.js";
-import { VIDEO_ADJUSTMENT_DEFINITIONS } from "./settings-schema.js";
+import {
+  VIDEO_ADJUSTMENT_DEFINITIONS,
+  hasVideoAdjustments
+} from "./settings-schema.js";
 
 const BUTTON_CLASS = "ytp-youtube-filter-button";
 const PANEL_CLASS = "ytp-youtube-filter-settings";
@@ -32,8 +35,11 @@ const COLOR_RANGE_MODES = [
 ];
 
 const VIDEO_ADJUSTMENTS = [
-  ["brightness", "明るさ"],
-  ["contrast", "コントラスト"]
+  ["brightness", "明るさ", "明"],
+  ["contrast", "コントラスト", "コ"],
+  ["saturation", "彩度", "彩"],
+  ["gamma", "ガンマ", "ガ"],
+  ["hue", "色相", "色"]
 ];
 
 const SUBMENUS = {
@@ -180,8 +186,23 @@ const PLAYER_SETTINGS_CSS = `
   }
 `;
 
-function formatAdjustmentValue(value) {
-  return `${value > 0 ? "+" : ""}${value}%`;
+function formatAdjustmentValue(setting, value) {
+  if (setting === "gamma") return `${value}%`;
+  const unit = setting === "hue" ? "°" : "%";
+  return `${value > 0 ? "+" : ""}${value}${unit}`;
+}
+
+function getAdjustmentSummary(settings) {
+  const activeAdjustments = VIDEO_ADJUSTMENTS.filter(([setting]) => (
+    settings[setting] !== VIDEO_ADJUSTMENT_DEFINITIONS[setting].defaultValue
+  ));
+  if (activeAdjustments.length === 0) return "標準";
+  if (activeAdjustments.length > 2) return `${activeAdjustments.length}項目を調整`;
+  return activeAdjustments
+    .map(([setting, , shortLabel]) => (
+      `${shortLabel} ${formatAdjustmentValue(setting, settings[setting])}`
+    ))
+    .join(" / ");
 }
 
 function createSvg(pathData, viewBox = "0 0 24 24") {
@@ -522,29 +543,24 @@ function createPanel(onChange, onPreview, onReset, getSettings, getOverriddenKey
     const input = root.querySelector(`[data-adjustment-input="${setting}"]`);
     const output = root.querySelector(`[data-adjustment-value="${setting}"]`);
     if (input) input.value = String(value);
-    if (output) output.textContent = formatAdjustmentValue(value);
-    const settings = getSettings();
-    const brightness = setting === "brightness" ? value : settings.brightness;
-    const contrast = setting === "contrast" ? value : settings.contrast;
+    if (output) output.textContent = formatAdjustmentValue(setting, value);
+    const settings = { ...getSettings(), [setting]: value };
     const summary = root.querySelector('[data-value-for="videoAdjustments"]');
-    if (summary) {
-      summary.textContent = brightness === 0 && contrast === 0
-        ? "標準"
-        : `明 ${formatAdjustmentValue(brightness)} / コ ${formatAdjustmentValue(contrast)}`;
-    }
+    if (summary) summary.textContent = getAdjustmentSummary(settings);
   };
   root.syncSettings = (settings, overriddenKeys = []) => {
     root.setSetting("anime4k", getAnime4kSelection(settings));
     root.setSetting("colorRangeMode", settings.colorRangeMode);
-    root.setAdjustmentSetting("brightness", settings.brightness);
-    root.setAdjustmentSetting("contrast", settings.contrast);
+    for (const [setting] of VIDEO_ADJUSTMENTS) {
+      root.setAdjustmentSetting(setting, settings[setting]);
+    }
     const overridden = new Set(overriddenKeys);
     for (const item of root.querySelectorAll("[data-setting-title]")) {
       const setting = item.dataset.submenuItem;
       const isOverridden = setting === "anime4k"
         ? isAnime4kOverridden(overriddenKeys)
         : setting === "videoAdjustments"
-          ? overridden.has("brightness") || overridden.has("contrast")
+          ? VIDEO_ADJUSTMENTS.some(([adjustment]) => overridden.has(adjustment))
         : overridden.has(setting);
       const badge = item.querySelector(`.${PANEL_CLASS}__session-badge`);
       if (badge) badge.hidden = !isOverridden;
@@ -641,8 +657,7 @@ export function createPlayerSettingsUi({
     const settings = getSettings();
     const filterEnabled = settings.enabled
       || settings.colorRangeMode !== "none"
-      || settings.brightness !== 0
-      || settings.contrast !== 0;
+      || hasVideoAdjustments(settings);
     button.classList.toggle("is-enabled", filterEnabled);
     button.title = filterEnabled ? "YouTube Video Filter設定（有効）" : "YouTube Video Filter設定（無効）";
     panel.syncSettings(settings, getOverriddenKeys());

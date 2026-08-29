@@ -11,10 +11,14 @@ import {
 
 const anime4kModeInput = document.querySelector("#anime4k-mode");
 const colorRangeInput = document.querySelector("#color-range-mode");
-const brightnessInput = document.querySelector("#brightness");
-const brightnessValue = document.querySelector("#brightness-value");
-const contrastInput = document.querySelector("#contrast");
-const contrastValue = document.querySelector("#contrast-value");
+const adjustmentSettings = ["brightness", "contrast", "saturation", "gamma", "hue"];
+const adjustmentControls = Object.fromEntries(adjustmentSettings.map((setting) => [
+  setting,
+  {
+    input: document.querySelector(`#${setting}`),
+    output: document.querySelector(`#${setting}-value`)
+  }
+]));
 const detailedLoggingInput = document.querySelector("#detailed-logging");
 const diagnosticContainer = document.querySelector("#diagnostic-container");
 const diagnosticStageInput = document.querySelector("#diagnostic-stage");
@@ -35,8 +39,10 @@ const MODE_NOTES = {
 };
 let preservedProfile = DEFAULT_SETTINGS.profile;
 
-function formatAdjustmentValue(value) {
-  return `${value > 0 ? "+" : ""}${value}%`;
+function formatAdjustmentValue(setting, value) {
+  if (setting === "gamma") return `${value}%`;
+  const unit = setting === "hue" ? "°" : "%";
+  return `${value > 0 ? "+" : ""}${value}${unit}`;
 }
 
 function configureAdjustmentInput(input, output, setting) {
@@ -45,22 +51,25 @@ function configureAdjustmentInput(input, output, setting) {
   input.max = String(definition.maximum);
   input.step = String(definition.step);
   input.addEventListener("input", () => {
-    output.textContent = formatAdjustmentValue(Number(input.value));
+    output.textContent = formatAdjustmentValue(setting, Number(input.value));
   });
 }
 
-configureAdjustmentInput(brightnessInput, brightnessValue, "brightness");
-configureAdjustmentInput(contrastInput, contrastValue, "contrast");
+for (const setting of adjustmentSettings) {
+  const { input, output } = adjustmentControls[setting];
+  configureAdjustmentInput(input, output, setting);
+}
 
 function setFormValues(settings) {
   settings = normalizeSettings(settings);
   preservedProfile = settings.profile;
   anime4kModeInput.value = getAnime4kSelection(settings);
   colorRangeInput.value = settings.colorRangeMode;
-  brightnessInput.value = String(settings.brightness);
-  brightnessValue.textContent = formatAdjustmentValue(settings.brightness);
-  contrastInput.value = String(settings.contrast);
-  contrastValue.textContent = formatAdjustmentValue(settings.contrast);
+  for (const setting of adjustmentSettings) {
+    const { input, output } = adjustmentControls[setting];
+    input.value = String(settings[setting]);
+    output.textContent = formatAdjustmentValue(setting, settings[setting]);
+  }
   detailedLoggingInput.checked = settings.detailedLogging;
   diagnosticStageInput.value = settings.diagnosticStage;
   diagnosticContainer.hidden = !settings.detailedLogging;
@@ -74,8 +83,7 @@ async function initialize() {
 function setFormDisabled(disabled) {
   anime4kModeInput.disabled = disabled;
   colorRangeInput.disabled = disabled;
-  brightnessInput.disabled = disabled;
-  contrastInput.disabled = disabled;
+  for (const { input } of Object.values(adjustmentControls)) input.disabled = disabled;
   detailedLoggingInput.disabled = disabled;
   diagnosticStageInput.disabled = disabled;
   saveButton.disabled = disabled;
@@ -86,8 +94,9 @@ function getFormSettings() {
   return {
     ...anime4kSettings,
     colorRangeMode: colorRangeInput.value,
-    brightness: Number(brightnessInput.value),
-    contrast: Number(contrastInput.value),
+    ...Object.fromEntries(adjustmentSettings.map((setting) => (
+      [setting, Number(adjustmentControls[setting].input.value)]
+    ))),
     detailedLogging: detailedLoggingInput.checked,
     diagnosticStage: detailedLoggingInput.checked ? diagnosticStageInput.value : "full"
   };

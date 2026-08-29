@@ -217,9 +217,12 @@ assert.match(contentSource, /removeEventListener\("uncapturederror", handleUncap
 assert.match(contentSource, /const restoreOriginalVideo = \(reason, error\) => \{\s+if \(cancelled \|\| failed\) return;/);
 assert.match(rendererSource, /GPUBufferUsage\.UNIFORM \| GPUBufferUsage\.COPY_DST/);
 assert.match(rendererSource, /updateDisplaySettings\(nextSettings\)/);
-assert.match(rendererSource, /size:\s*16/);
+assert.match(rendererSource, /size:\s*32/);
 assert.match(rendererSource, /displaySettings\.brightness/);
 assert.match(rendererSource, /displaySettings\.contrast/);
+assert.match(rendererSource, /displaySettings\.saturation/);
+assert.match(rendererSource, /displaySettings\.gamma/);
+assert.match(rendererSource, /displaySettings\.hue/);
 assert.match(playerSettingsSource, /createStatisticItem\("status", "状態"\)/);
 assert.match(
   playerSettingsSource,
@@ -255,6 +258,10 @@ assert.match(contentBundle, /255\.0\s*\/\s*219\.0/);
 assert.match(contentBundle, /219\.0\s*\/\s*255\.0/);
 assert.match(popupDocument, /id="color-range-mode"/);
 assert.match(popupDocument, /id="anime4k-mode"/);
+for (const setting of ["brightness", "contrast", "saturation", "gamma", "hue"]) {
+  assert.match(popupDocument, new RegExp(`id="${setting}"`));
+  assert.match(popupDocument, new RegExp(`id="${setting}-value"`));
+}
 assert.match(popupDocument, /value="off">オフ/);
 assert.doesNotMatch(popupDocument, /id="enabled"/);
 assert.doesNotMatch(popupDocument, /Anime4Kを有効にする/);
