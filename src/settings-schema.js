@@ -9,7 +9,7 @@ const schema = Object.freeze({
       "mode-c",
       "mode-aa",
       "mode-bb",
-      "mode-ac",
+      "mode-ca",
       "v4.1-low-resolution"
     ])
   }),
@@ -24,6 +24,15 @@ const schema = Object.freeze({
   })
 });
 
+const legacySettingValueAliases = Object.freeze({
+  profile: Object.freeze({ "mode-ac": "mode-ca" })
+});
+
+function getCanonicalSettingValue(key, value) {
+  const aliases = legacySettingValueAliases[key];
+  return aliases && Object.hasOwn(aliases, value) ? aliases[value] : value;
+}
+
 export const SETTINGS_KEYS = Object.freeze(Object.keys(schema));
 export const TAB_SETTING_KEYS = Object.freeze(["enabled", "profile", "colorRangeMode"]);
 export const DEFAULT_SETTINGS = Object.freeze(Object.fromEntries(
@@ -34,7 +43,8 @@ export const TAB_SETTINGS_DEFAULTS = Object.freeze(Object.fromEntries(
 ));
 
 export function isValidSettingValue(key, value) {
-  return Object.hasOwn(schema, key) && schema[key].values.includes(value);
+  return Object.hasOwn(schema, key)
+    && schema[key].values.includes(getCanonicalSettingValue(key, value));
 }
 
 export function sanitizeSettings(settings, allowedKeys = SETTINGS_KEYS) {
@@ -42,7 +52,7 @@ export function sanitizeSettings(settings, allowedKeys = SETTINGS_KEYS) {
   return Object.fromEntries(
     allowedKeys
       .filter((key) => Object.hasOwn(settings, key) && isValidSettingValue(key, settings[key]))
-      .map((key) => [key, settings[key]])
+      .map((key) => [key, getCanonicalSettingValue(key, settings[key])])
   );
 }
 

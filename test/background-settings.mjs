@@ -200,6 +200,28 @@ assert.deepEqual(sessionSettings.get("tab-settings:4"), {
   overriddenKeys: sanitized.overriddenKeys
 });
 
+sessionSettings.set("tab-settings:5", {
+  values: {
+    enabled: true,
+    profile: "mode-ac",
+    colorRangeMode: "none"
+  },
+  overriddenKeys: ["profile"]
+});
+const legacyProfileMigrated = await sendMessage("youtube-video-filter:get-tab-settings", 5);
+assert.deepEqual(legacyProfileMigrated, {
+  settings: {
+    enabled: true,
+    profile: "mode-ca",
+    colorRangeMode: "none"
+  },
+  overriddenKeys: ["profile"]
+});
+assert.deepEqual(sessionSettings.get("tab-settings:5"), {
+  values: legacyProfileMigrated.settings,
+  overriddenKeys: legacyProfileMigrated.overriddenKeys
+});
+
 tabRemovedListener(2);
 await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(sessionSettings.has("tab-settings:2"), false);

@@ -24,12 +24,15 @@ assert.deepEqual(TAB_SETTINGS_DEFAULTS, {
 });
 
 assert.equal(isValidSettingValue("profile", "mode-c"), true);
+assert.equal(isValidSettingValue("profile", "mode-ca"), true);
+assert.equal(isValidSettingValue("profile", "mode-ac"), true);
 assert.equal(isValidSettingValue("profile", "invalid"), false);
 assert.equal(isValidSettingValue("enabled", 1), false);
 assert.deepEqual(normalizeSettings({ profile: "invalid", detailedLogging: true }), {
   ...DEFAULT_SETTINGS,
   detailedLogging: true
 });
+assert.equal(normalizeSettings({ profile: "mode-ac" }).profile, "mode-ca");
 assert.deepEqual(
   sanitizeSettings({ enabled: false, detailedLogging: true }, TAB_SETTING_KEYS),
   { enabled: false }
@@ -37,6 +40,10 @@ assert.deepEqual(
 assert.deepEqual(
   validateSettingChanges({ profile: "mode-b", unknownSetting: "ignored" }, TAB_SETTING_KEYS),
   { profile: "mode-b" }
+);
+assert.deepEqual(
+  validateSettingChanges({ profile: "mode-ac" }, TAB_SETTING_KEYS),
+  { profile: "mode-ca" }
 );
 assert.throws(
   () => validateSettingChanges({ profile: "invalid" }, TAB_SETTING_KEYS),

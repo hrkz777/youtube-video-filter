@@ -10,6 +10,7 @@ import {
   ModeB,
   ModeBB,
   ModeC,
+  ModeCA,
   Original
 } from "anime4k-webgpu";
 import { render } from "./renderer.js";
@@ -64,7 +65,7 @@ const PROFILE_NAMES = {
   "mode-c": "Mode C",
   "mode-aa": "Mode A+A",
   "mode-bb": "Mode B+B",
-  "mode-ac": "Mode A+C（カスタム）",
+  "mode-ca": "Mode C+A",
   "v4.1-low-resolution": "v4.1 Low resolution experiment"
 };
 
@@ -349,20 +350,8 @@ function buildPreset(profile, device, inputTexture, video, canvas) {
       return [new ModeAA(descriptor)];
     case "mode-bb":
       return [new ModeBB(descriptor)];
-    case "mode-ac": {
-      const modeA = new ModeA(descriptor);
-      const modeAOutput = modeA.getOutputTexture();
-      const modeC = new ModeC({
-        device,
-        inputTexture: modeAOutput,
-        nativeDimensions: {
-          width: modeAOutput.width,
-          height: modeAOutput.height
-        },
-        targetDimensions: descriptor.targetDimensions
-      });
-      return [modeA, modeC];
-    }
+    case "mode-ca":
+      return [new ModeCA(descriptor)];
     default:
       return buildModeA(device, inputTexture, video, canvas);
   }

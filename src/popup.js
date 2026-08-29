@@ -22,7 +22,7 @@ const MODE_NOTES = {
   "mode-c": "低劣化素材向けで、ノイズを抑えながら拡大します。",
   "mode-aa": "Mode Aの二段構成です。2倍以上の拡大向けでGPU負荷が高くなります。",
   "mode-bb": "Mode Bの二段構成です。2倍以上の拡大向けでGPU負荷が高くなります。",
-  "mode-ac": "Mode Aの出力をMode Cへ渡すカスタム構成です。GPU負荷が高くなります。",
+  "mode-ca": "Mode Cの後にMode A相当の復元・アップスケールを適用します。GPU負荷が高くなります。",
   "v4.1-low-resolution": "実験的な360p以下専用モードです。非常に高いGPU性能とVRAMを必要とします。"
 };
 let preservedProfile = DEFAULT_SETTINGS.profile;

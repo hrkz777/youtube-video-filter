@@ -258,9 +258,13 @@ assert.doesNotMatch(popupDocument, /id="reset-tab-button"/);
 assert.match(popupDocument, />保存<\/button>/);
 assert.match(popupDocument, /A: 入力映像のみ/);
 assert.match(popupDocument, /D: 通常の全処理/);
-for (const profileValue of ["mode-a", "mode-b", "mode-c", "mode-aa", "mode-bb", "mode-ac"]) {
+for (const profileValue of ["mode-a", "mode-b", "mode-c", "mode-aa", "mode-bb", "mode-ca"]) {
   assert.match(popupDocument, new RegExp(`value="${profileValue}"`));
 }
+assert.doesNotMatch(popupDocument, /value="mode-ac"/);
+assert.match(contentSource, /case "mode-ca":\s+return \[new ModeCA\(descriptor\)\];/);
+assert.match(playerSettingsSource, /\["mode-ca", "Mode C\+A"\]/);
+assert.doesNotMatch(playerSettingsSource, /"mode-ac"/);
 assert.doesNotMatch(popupDocument, /<option[^>]*>v4\.(?:x|1)/);
 assert.doesNotMatch(playerSettingsSource, /\["[^\"]+", "v4\.(?:x|1)/);
 assert.match(popupBundle, /detailedLogging/);
