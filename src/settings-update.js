@@ -1,7 +1,8 @@
+import { VIDEO_ADJUSTMENT_KEYS, hasVideoAdjustments } from "./settings-schema.js";
+
 const isFilterActive = (settings) => settings.enabled
   || settings.colorRangeMode !== "none"
-  || settings.brightness !== 0
-  || settings.contrast !== 0;
+  || hasVideoAdjustments(settings);
 
 export function getSettingsUpdateAction(previous, current, canUpdateDisplaySettings) {
   const wasActive = isFilterActive(previous);
@@ -15,8 +16,7 @@ export function getSettingsUpdateAction(previous, current, canUpdateDisplaySetti
     return "restart";
   }
   if (previous.colorRangeMode !== current.colorRangeMode
-    || previous.brightness !== current.brightness
-    || previous.contrast !== current.contrast) {
+    || VIDEO_ADJUSTMENT_KEYS.some((key) => previous[key] !== current[key])) {
     return canUpdateDisplaySettings ? "update-display-settings" : "restart";
   }
   return "none";

@@ -1,7 +1,11 @@
 export const VIDEO_ADJUSTMENT_DEFINITIONS = Object.freeze({
   brightness: Object.freeze({ defaultValue: 0, minimum: -100, maximum: 100, step: 1 }),
-  contrast: Object.freeze({ defaultValue: 0, minimum: -100, maximum: 100, step: 1 })
+  contrast: Object.freeze({ defaultValue: 0, minimum: -100, maximum: 100, step: 1 }),
+  saturation: Object.freeze({ defaultValue: 0, minimum: -100, maximum: 100, step: 1 }),
+  gamma: Object.freeze({ defaultValue: 100, minimum: 10, maximum: 300, step: 1 }),
+  hue: Object.freeze({ defaultValue: 0, minimum: -180, maximum: 180, step: 1 })
 });
+export const VIDEO_ADJUSTMENT_KEYS = Object.freeze(Object.keys(VIDEO_ADJUSTMENT_DEFINITIONS));
 
 const schema = Object.freeze({
   enabled: Object.freeze({ defaultValue: true, values: Object.freeze([true, false]) }),
@@ -24,6 +28,9 @@ const schema = Object.freeze({
   }),
   brightness: VIDEO_ADJUSTMENT_DEFINITIONS.brightness,
   contrast: VIDEO_ADJUSTMENT_DEFINITIONS.contrast,
+  saturation: VIDEO_ADJUSTMENT_DEFINITIONS.saturation,
+  gamma: VIDEO_ADJUSTMENT_DEFINITIONS.gamma,
+  hue: VIDEO_ADJUSTMENT_DEFINITIONS.hue,
   detailedLogging: Object.freeze({ defaultValue: false, values: Object.freeze([true, false]) }),
   diagnosticStage: Object.freeze({
     defaultValue: "full",
@@ -45,8 +52,7 @@ export const TAB_SETTING_KEYS = Object.freeze([
   "enabled",
   "profile",
   "colorRangeMode",
-  "brightness",
-  "contrast"
+  ...VIDEO_ADJUSTMENT_KEYS
 ]);
 export const DEFAULT_SETTINGS = Object.freeze(Object.fromEntries(
   SETTINGS_KEYS.map((key) => [key, schema[key].defaultValue])
@@ -91,4 +97,11 @@ export function validateSettingChanges(settings, allowedKeys = SETTINGS_KEYS) {
     throw new TypeError(`不正な設定値です: ${invalidKeys.join(", ")}`);
   }
   return sanitizeSettings(settings, allowedKeys);
+}
+
+export function hasVideoAdjustments(settings) {
+  return VIDEO_ADJUSTMENT_KEYS.some((key) => (
+    (settings?.[key] ?? VIDEO_ADJUSTMENT_DEFINITIONS[key].defaultValue)
+      !== VIDEO_ADJUSTMENT_DEFINITIONS[key].defaultValue
+  ));
 }

@@ -4,6 +4,8 @@ import {
   TAB_SETTING_KEYS,
   TAB_SETTINGS_DEFAULTS,
   VIDEO_ADJUSTMENT_DEFINITIONS,
+  VIDEO_ADJUSTMENT_KEYS,
+  hasVideoAdjustments,
   isValidSettingValue,
   normalizeSettings,
   sanitizeSettings,
@@ -16,6 +18,9 @@ assert.deepEqual(DEFAULT_SETTINGS, {
   colorRangeMode: "none",
   brightness: 0,
   contrast: 0,
+  saturation: 0,
+  gamma: 100,
+  hue: 0,
   detailedLogging: false,
   diagnosticStage: "full"
 });
@@ -24,15 +29,28 @@ assert.deepEqual(TAB_SETTING_KEYS, [
   "profile",
   "colorRangeMode",
   "brightness",
-  "contrast"
+  "contrast",
+  "saturation",
+  "gamma",
+  "hue"
 ]);
 assert.deepEqual(TAB_SETTINGS_DEFAULTS, {
   enabled: true,
   profile: "auto",
   colorRangeMode: "none",
   brightness: 0,
-  contrast: 0
+  contrast: 0,
+  saturation: 0,
+  gamma: 100,
+  hue: 0
 });
+assert.deepEqual(VIDEO_ADJUSTMENT_KEYS, [
+  "brightness",
+  "contrast",
+  "saturation",
+  "gamma",
+  "hue"
+]);
 assert.deepEqual(VIDEO_ADJUSTMENT_DEFINITIONS.brightness, {
   defaultValue: 0,
   minimum: -100,
@@ -51,6 +69,16 @@ assert.equal(isValidSettingValue("contrast", 25), true);
 assert.equal(isValidSettingValue("brightness", 100.5), false);
 assert.equal(isValidSettingValue("contrast", Number.NaN), false);
 assert.equal(isValidSettingValue("contrast", 101), false);
+assert.equal(isValidSettingValue("saturation", -100), true);
+assert.equal(isValidSettingValue("gamma", 10), true);
+assert.equal(isValidSettingValue("gamma", 300), true);
+assert.equal(isValidSettingValue("gamma", 0), false);
+assert.equal(isValidSettingValue("hue", -180), true);
+assert.equal(isValidSettingValue("hue", 181), false);
+assert.equal(hasVideoAdjustments(DEFAULT_SETTINGS), false);
+assert.equal(hasVideoAdjustments({ ...DEFAULT_SETTINGS, saturation: 1 }), true);
+assert.equal(hasVideoAdjustments({ ...DEFAULT_SETTINGS, gamma: 99 }), true);
+assert.equal(hasVideoAdjustments({ ...DEFAULT_SETTINGS, hue: -1 }), true);
 assert.deepEqual(normalizeSettings({ profile: "invalid", detailedLogging: true }), {
   ...DEFAULT_SETTINGS,
   detailedLogging: true

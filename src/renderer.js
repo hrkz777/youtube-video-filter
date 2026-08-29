@@ -37,7 +37,11 @@ struct DisplaySettings {
   colorRangeMode: u32,
   brightness: f32,
   contrast: f32,
-  padding: f32,
+  saturation: f32,
+  gamma: f32,
+  hue: f32,
+  padding0: f32,
+  padding1: f32,
 }
 @group(0) @binding(2) var<uniform> displaySettings: DisplaySettings;
 
@@ -51,11 +55,32 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     // 8-bit full range (0-255) to limited range (16-235)
     color = vec4f(clamp(color.rgb * (219.0 / 255.0) + vec3f(16.0 / 255.0), vec3f(0.0), vec3f(1.0)), color.a);
   }
-  // カラーレンジ変換後のRGBへ、一般的な表示調整を適用する。
-  color = vec4f(
-    clamp((color.rgb - vec3f(0.5)) * displaySettings.contrast + vec3f(0.5 + displaySettings.brightness), vec3f(0.0), vec3f(1.0)),
-    color.a
-  );
+  // カラーレンジ変換後に、色相、彩度、コントラスト、明るさ、ガンマの順で適用する。
+  var adjusted = color.rgb;
+  if (displaySettings.hue != 0.0) {
+    let y = dot(adjusted, vec3f(0.299, 0.587, 0.114));
+    let i = dot(adjusted, vec3f(0.596, -0.274, -0.322));
+    let q = dot(adjusted, vec3f(0.211, -0.523, 0.312));
+    let cosine = cos(displaySettings.hue);
+    let sine = sin(displaySettings.hue);
+    let rotatedI = i * cosine - q * sine;
+    let rotatedQ = i * sine + q * cosine;
+    adjusted = vec3f(
+      y + 0.956 * rotatedI + 0.621 * rotatedQ,
+      y - 0.272 * rotatedI - 0.647 * rotatedQ,
+      y - 1.106 * rotatedI + 1.703 * rotatedQ
+    );
+  }
+  if (displaySettings.saturation != 1.0) {
+    let luminance = dot(adjusted, vec3f(0.2126, 0.7152, 0.0722));
+    adjusted = mix(vec3f(luminance), adjusted, vec3f(displaySettings.saturation));
+  }
+  adjusted = (adjusted - vec3f(0.5)) * displaySettings.contrast
+    + vec3f(0.5 + displaySettings.brightness);
+  if (displaySettings.gamma != 1.0) {
+    adjusted = pow(max(adjusted, vec3f(0.0)), vec3f(displaySettings.gamma));
+  }
+  color = vec4f(clamp(adjusted, vec3f(0.0), vec3f(1.0)), color.a);
   return color;
 }
 `;
@@ -68,12 +93,22 @@ const COLOR_RANGE_MODE_VALUES = {
 const MAX_INPUT_FRAME_DRIFT_SECONDS = 0.1;
 const FRAME_STATS_INTERVAL_MILLISECONDS = 1000;
 
-export function createDisplaySettingsData(colorRangeMode, brightness = 0, contrast = 0) {
-  const data = new ArrayBuffer(16);
+export function createDisplaySettingsData({
+  colorRangeMode = "none",
+  brightness = 0,
+  contrast = 0,
+  saturation = 0,
+  gamma = 100,
+  hue = 0
+} = {}) {
+  const data = new ArrayBuffer(32);
   new Uint32Array(data)[0] = COLOR_RANGE_MODE_VALUES[colorRangeMode] ?? 0;
   const floatValues = new Float32Array(data);
   floatValues[1] = brightness / 100;
   floatValues[2] = 1 + contrast / 100;
+  floatValues[3] = 1 + saturation / 100;
+  floatValues[4] = 100 / gamma;
+  floatValues[5] = hue * Math.PI / 180;
   return data;
 }
 
@@ -171,6 +206,9 @@ export async function render({
   colorRangeMode,
   brightness = 0,
   contrast = 0,
+  saturation = 0,
+  gamma = 100,
+  hue = 0,
   pipelineBuilder,
   onRuntimeError,
   onInputSample,
@@ -276,12 +314,19 @@ export async function render({
     });
     displaySettingsBuffer = device.createBuffer({
       label: "YouTube Video Filter display settings",
-      size: 16,
+      size: 32,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       mappedAtCreation: true
     });
     new Uint8Array(displaySettingsBuffer.getMappedRange()).set(
-      new Uint8Array(createDisplaySettingsData(colorRangeMode, brightness, contrast))
+      new Uint8Array(createDisplaySettingsData({
+        colorRangeMode,
+        brightness,
+        contrast,
+        saturation,
+        gamma,
+        hue
+      }))
     );
     displaySettingsBuffer.unmap();
     bindGroup = device.createBindGroup({
@@ -592,11 +637,7 @@ export async function render({
         device.queue.writeBuffer(
           displaySettingsBuffer,
           0,
-          createDisplaySettingsData(
-            nextSettings.colorRangeMode,
-            nextSettings.brightness,
-            nextSettings.contrast
-          )
+          createDisplaySettingsData(nextSettings)
         );
         return true;
       } catch {

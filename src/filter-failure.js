@@ -4,6 +4,9 @@ const FILTER_SETTING_KEYS = [
   "colorRangeMode",
   "brightness",
   "contrast",
+  "saturation",
+  "gamma",
+  "hue",
   "diagnosticStage"
 ];
 

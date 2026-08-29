@@ -10,6 +10,9 @@ const base = {
   colorRangeMode: "none",
   brightness: 0,
   contrast: 0,
+  saturation: 0,
+  gamma: 100,
+  hue: 0,
   detailedLogging: false,
   diagnosticStage: "full"
 };
@@ -48,6 +51,12 @@ assert.equal(
   getSettingsUpdateAction(base, { ...base, contrast: -20 }, false),
   "restart"
 );
+for (const changes of [{ saturation: 20 }, { gamma: 120 }, { hue: -30 }]) {
+  assert.equal(
+    getSettingsUpdateAction(base, { ...base, ...changes }, true),
+    "update-display-settings"
+  );
+}
 assert.equal(
   getSettingsUpdateAction(base, { ...base, colorRangeMode: "limited-to-full" }, false),
   "restart"

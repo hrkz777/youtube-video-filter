@@ -16,7 +16,10 @@ const localSettings = {
   profile: "auto",
   colorRangeMode: "none",
   brightness: 0,
-  contrast: 0
+  contrast: 0,
+  saturation: 0,
+  gamma: 100,
+  hue: 0
 };
 const sessionSettings = new Map();
 let delayedSessionSet = false;
@@ -100,6 +103,9 @@ const multipleOverrides = await sendMessage("youtube-video-filter:set-tab-settin
   enabled: false,
   brightness: 15,
   contrast: -10,
+  saturation: 30,
+  gamma: 120,
+  hue: 45,
   unknownSetting: "ignored"
 });
 assert.deepEqual(multipleOverrides, {
@@ -108,17 +114,30 @@ assert.deepEqual(multipleOverrides, {
     profile: "auto",
     colorRangeMode: "none",
     brightness: 15,
-    contrast: -10
+    contrast: -10,
+    saturation: 30,
+    gamma: 120,
+    hue: 45
   },
-  overriddenKeys: ["enabled", "profile", "brightness", "contrast"]
+  overriddenKeys: [
+    "enabled",
+    "profile",
+    "brightness",
+    "contrast",
+    "saturation",
+    "gamma",
+    "hue"
+  ]
 });
 
 const invalidUpdate = await sendMessage("youtube-video-filter:set-tab-settings", 1, {
   enabled: true,
   profile: "invalid-profile",
-  brightness: 101
+  brightness: 101,
+  gamma: 0,
+  hue: 181
 });
-assert.match(invalidUpdate.error, /不正な設定値です: profile, brightness/);
+assert.match(invalidUpdate.error, /不正な設定値です: profile, brightness, gamma, hue/);
 assert.deepEqual(sessionSettings.get("tab-settings:1"), {
   values: multipleOverrides.settings,
   overriddenKeys: multipleOverrides.overriddenKeys
@@ -158,7 +177,10 @@ assert.deepEqual(sessionSettings.get("tab-settings:2"), {
     profile: "mode-c",
     colorRangeMode: "full-to-limited",
     brightness: 0,
-    contrast: 0
+    contrast: 0,
+    saturation: 0,
+    gamma: 100,
+    hue: 0
   },
   overriddenKeys: ["enabled", "profile", "colorRangeMode"]
 });

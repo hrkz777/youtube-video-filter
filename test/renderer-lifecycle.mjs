@@ -13,16 +13,26 @@ function createDeferred() {
 }
 
 {
-  const neutralData = createDisplaySettingsData("none");
-  assert.equal(neutralData.byteLength, 16);
+  const neutralData = createDisplaySettingsData();
+  assert.equal(neutralData.byteLength, 32);
   assert.equal(new Uint32Array(neutralData)[0], 0);
-  assert.deepEqual(Array.from(new Float32Array(neutralData).slice(1, 3)), [0, 1]);
+  assert.deepEqual(Array.from(new Float32Array(neutralData).slice(1, 6)), [0, 1, 1, 1, 0]);
 
-  const adjustedData = createDisplaySettingsData("limited-to-full", 25, -40);
+  const adjustedData = createDisplaySettingsData({
+    colorRangeMode: "limited-to-full",
+    brightness: 25,
+    contrast: -40,
+    saturation: 50,
+    gamma: 200,
+    hue: 90
+  });
   assert.equal(new Uint32Array(adjustedData)[0], 1);
   const adjustedValues = new Float32Array(adjustedData);
   assert.ok(Math.abs(adjustedValues[1] - 0.25) < 1e-6);
   assert.ok(Math.abs(adjustedValues[2] - 0.6) < 1e-6);
+  assert.ok(Math.abs(adjustedValues[3] - 1.5) < 1e-6);
+  assert.ok(Math.abs(adjustedValues[4] - 0.5) < 1e-6);
+  assert.ok(Math.abs(adjustedValues[5] - Math.PI / 2) < 1e-6);
 }
 
 function installWebGpuMocks() {
@@ -249,13 +259,19 @@ async function flushPromises() {
   assert.equal(renderer.updateDisplaySettings({
     colorRangeMode: "full-to-limited",
     brightness: -25,
-    contrast: 50
+    contrast: 50,
+    saturation: -50,
+    gamma: 50,
+    hue: -90
   }), true);
   assert.equal(bufferWrites.length, 1);
   assert.equal(new Uint32Array(bufferWrites[0].data)[0], 2);
   const updatedValues = new Float32Array(bufferWrites[0].data);
   assert.ok(Math.abs(updatedValues[1] + 0.25) < 1e-6);
   assert.ok(Math.abs(updatedValues[2] - 1.5) < 1e-6);
+  assert.ok(Math.abs(updatedValues[3] - 0.5) < 1e-6);
+  assert.ok(Math.abs(updatedValues[4] - 2) < 1e-6);
+  assert.ok(Math.abs(updatedValues[5] + Math.PI / 2) < 1e-6);
 
   video.fireFrame();
   renderer.stop();

@@ -22,7 +22,11 @@ import { createPlayerSettingsUi } from "./player-settings.js";
 import { createFilterFailureRegistry, getFilterCompatibilityError } from "./filter-failure.js";
 import { disposeWebGpuDevice, subscribeWebGpuDeviceLoss } from "./webgpu-device.js";
 import { shouldRestartForResize } from "./resize-policy.js";
-import { DEFAULT_SETTINGS, normalizeSettings } from "./settings-schema.js";
+import {
+  DEFAULT_SETTINGS,
+  hasVideoAdjustments,
+  normalizeSettings
+} from "./settings-schema.js";
 
 const CANVAS_CLASS = "youtube-filter-canvas";
 const VIDEO_CLASS = "youtube-filter-source";
@@ -53,8 +57,7 @@ const filterFailures = createFilterFailureRegistry();
 
 const isDisplayProcessingActive = (settings) => settings.enabled
   || settings.colorRangeMode !== "none"
-  || settings.brightness !== 0
-  || settings.contrast !== 0;
+  || hasVideoAdjustments(settings);
 
 const DIAGNOSTIC_STAGE_NAMES = {
   full: "D: 通常の全処理",
@@ -407,6 +410,9 @@ async function applyFilters(video, {
   colorRangeMode,
   brightness,
   contrast,
+  saturation,
+  gamma,
+  hue,
   diagnosticStage
 }) {
   if (document.visibilityState !== "visible"
@@ -442,6 +448,9 @@ async function applyFilters(video, {
     colorRangeMode,
     brightness,
     contrast,
+    saturation,
+    gamma,
+    hue,
     diagnosticStage
   };
   const originalVisibility = video.style.visibility;
@@ -591,6 +600,9 @@ async function applyFilters(video, {
       colorRangeMode,
       brightness,
       contrast,
+      saturation,
+      gamma,
+      hue,
       onInputSample: detailedLogging
         ? (samples) => diagnostic("2D Canvas中継後の入力画素", JSON.stringify(samples))
         : undefined,
@@ -662,6 +674,9 @@ async function applyFilters(video, {
           colorRangeMode,
           brightness,
           contrast,
+          saturation,
+          gamma,
+          hue,
           diagnosticStage: DIAGNOSTIC_STAGE_NAMES[diagnosticStage],
           pipelineCount: pipelines.length,
           inputTextureFormat: "rgba8unorm",
@@ -756,6 +771,9 @@ async function applyFilters(video, {
     if (colorRangeMode !== "none") appliedFilters.push(`色レンジ ${COLOR_RANGE_NAMES[colorRangeMode]}`);
     if (brightness !== 0) appliedFilters.push(`明るさ ${brightness > 0 ? "+" : ""}${brightness}%`);
     if (contrast !== 0) appliedFilters.push(`コントラスト ${contrast > 0 ? "+" : ""}${contrast}%`);
+    if (saturation !== 0) appliedFilters.push(`彩度 ${saturation > 0 ? "+" : ""}${saturation}%`);
+    if (gamma !== 100) appliedFilters.push(`ガンマ ${gamma}%`);
+    if (hue !== 0) appliedFilters.push(`色相 ${hue > 0 ? "+" : ""}${hue}°`);
     report(`${appliedFilters.join(" / ")}の最初のGPU処理が完了しました (${video.videoWidth}x${video.videoHeight} → ${canvas.width}x${canvas.height})`);
   } catch (error) {
     if (validationScopeActive && renderingDevice) {
@@ -826,7 +844,10 @@ function applySettings(changes, scope = "tab") {
     diagnostic("表示設定を再初期化せず更新", {
       colorRangeMode: currentSettings.colorRangeMode,
       brightness: currentSettings.brightness,
-      contrast: currentSettings.contrast
+      contrast: currentSettings.contrast,
+      saturation: currentSettings.saturation,
+      gamma: currentSettings.gamma,
+      hue: currentSettings.hue
     });
     return;
   }
@@ -835,7 +856,10 @@ function applySettings(changes, scope = "tab") {
     && initializationInProgress) {
     diagnostic("初期化完了後に最新の表示設定を反映", {
       brightness: currentSettings.brightness,
-      contrast: currentSettings.contrast
+      contrast: currentSettings.contrast,
+      saturation: currentSettings.saturation,
+      gamma: currentSettings.gamma,
+      hue: currentSettings.hue
     });
     return;
   }
@@ -913,6 +937,9 @@ async function start() {
     colorRangeMode: currentSettings.colorRangeMode,
     brightness: currentSettings.brightness,
     contrast: currentSettings.contrast,
+    saturation: currentSettings.saturation,
+    gamma: currentSettings.gamma,
+    hue: currentSettings.hue,
     diagnosticStage: DIAGNOSTIC_STAGE_NAMES[currentSettings.diagnosticStage],
     page: `${location.origin}${location.pathname}`,
     webGpuAvailable: Boolean(navigator.gpu)
@@ -964,6 +991,9 @@ async function start() {
       "colorRangeMode",
       "brightness",
       "contrast",
+      "saturation",
+      "gamma",
+      "hue",
       "detailedLogging",
       "diagnosticStage"
     ]) {
