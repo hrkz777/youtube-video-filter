@@ -5,6 +5,7 @@ import {
   getAnime4kSelection,
   isAnime4kOverridden
 } from "./anime4k-setting.js";
+import { VIDEO_ADJUSTMENT_DEFINITIONS } from "./settings-schema.js";
 
 const BUTTON_CLASS = "ytp-youtube-filter-button";
 const PANEL_CLASS = "ytp-youtube-filter-settings";
@@ -28,6 +29,11 @@ const COLOR_RANGE_MODES = [
   ["none", "変換なし"],
   ["limited-to-full", "リミテッド → フル"],
   ["full-to-limited", "フル → リミテッド"]
+];
+
+const VIDEO_ADJUSTMENTS = [
+  ["brightness", "明るさ"],
+  ["contrast", "コントラスト"]
 ];
 
 const SUBMENUS = {
@@ -149,7 +155,34 @@ const PLAYER_SETTINGS_CSS = `
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .${PANEL_CLASS} .${PANEL_CLASS}__adjustment {
+    min-height: 64px;
+    cursor: default;
+  }
+  .${PANEL_CLASS} .${PANEL_CLASS}__adjustment .ytp-menuitem-label {
+    min-width: 92px;
+    padding-left: 16px;
+  }
+  .${PANEL_CLASS} .${PANEL_CLASS}__adjustment-controls {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 10px;
+    padding-right: 16px;
+  }
+  .${PANEL_CLASS} .${PANEL_CLASS}__adjustment-controls input[type="range"] {
+    flex: 1;
+    min-width: 120px;
+  }
+  .${PANEL_CLASS} .${PANEL_CLASS}__adjustment-controls output {
+    width: 48px;
+    text-align: right;
+  }
 `;
+
+function formatAdjustmentValue(value) {
+  return `${value > 0 ? "+" : ""}${value}%`;
+}
 
 function createSvg(pathData, viewBox = "0 0 24 24") {
   const icon = document.createElementNS(SVG_NAMESPACE, "svg");
@@ -306,7 +339,11 @@ function createPanel(onChange, onReset, getSettings, getOverriddenKeys) {
       ? [...menu.children].filter((item) => !item.hidden).length
       : 0;
     const measuredMenuHeight = menu?.scrollHeight ?? 0;
-    const itemHeight = Object.hasOwn(SUBMENUS, currentPage) ? 40 : 48;
+    const itemHeight = Object.hasOwn(SUBMENUS, currentPage)
+      ? 40
+      : currentPage === "videoAdjustments"
+        ? 64
+        : 48;
     const menuHeight = measuredMenuHeight > 0 ? measuredMenuHeight : visibleItemCount * itemHeight;
     const playerHeight = root.parentElement?.clientHeight || window.innerHeight;
     const maximumHeight = Math.max(48, playerHeight - 72);
@@ -355,11 +392,17 @@ function createPanel(onChange, onReset, getSettings, getOverriddenKeys) {
     showPage
   );
   const colorItem = createSubmenuItem("colorRangeMode", "カラーレンジ", "M12 3a9 9 0 1 0 0 18V3Zm0 2v14a7 7 0 0 1 0-14Z", showPage);
+  const adjustmentItem = createSubmenuItem(
+    "videoAdjustments",
+    "映像調整",
+    "M4 7h10v2H4V7Zm12-2h2v6h-2V5ZM4 15h4v2H4v-2Zm6-2h2v6h-2v-6Zm4 2h6v2h-6v-2Z",
+    showPage
+  );
   const resetItem = createResetItem(onReset, (message) => {
     root.syncSettings(getSettings(), getOverriddenKeys());
     root.showError(message);
   });
-  mainMenu.append(anime4kItem, colorItem, resetItem);
+  mainMenu.append(anime4kItem, colorItem, adjustmentItem, resetItem);
   const saveErrorItem = document.createElement("div");
   saveErrorItem.className = `ytp-menuitem ${PANEL_CLASS}__save-error`;
   saveErrorItem.setAttribute("role", "alert");
@@ -410,6 +453,39 @@ function createPanel(onChange, onReset, getSettings, getOverriddenKeys) {
     popupContent.append(panel);
   }
 
+  const adjustmentsPanel = document.createElement("div");
+  adjustmentsPanel.className = "ytp-panel";
+  adjustmentsPanel.hidden = true;
+  adjustmentsPanel.append(createPanelHeader("映像調整", () => showPage("main")));
+  const adjustmentsMenu = document.createElement("div");
+  adjustmentsMenu.className = "ytp-panel-menu";
+  adjustmentsMenu.setAttribute("role", "group");
+  adjustmentsMenu.setAttribute("aria-label", "映像調整");
+  for (const [setting, label] of VIDEO_ADJUSTMENTS) {
+    const definition = VIDEO_ADJUSTMENT_DEFINITIONS[setting];
+    const item = document.createElement("div");
+    item.className = `ytp-menuitem ${PANEL_CLASS}__adjustment`;
+    const controls = document.createElement("div");
+    controls.className = `${PANEL_CLASS}__adjustment-controls`;
+    const input = document.createElement("input");
+    input.type = "range";
+    input.min = String(definition.minimum);
+    input.max = String(definition.maximum);
+    input.step = String(definition.step);
+    input.dataset.adjustmentInput = setting;
+    input.setAttribute("aria-label", label);
+    const output = document.createElement("output");
+    output.dataset.adjustmentValue = setting;
+    input.addEventListener("input", () => root.setAdjustmentSetting(setting, Number(input.value)));
+    input.addEventListener("change", () => saveChange({ [setting]: Number(input.value) }));
+    controls.append(input, output);
+    item.append(createMenuLabel(label), controls);
+    adjustmentsMenu.append(item);
+  }
+  adjustmentsPanel.append(adjustmentsMenu);
+  pages.set("videoAdjustments", adjustmentsPanel);
+  popupContent.append(adjustmentsPanel);
+
   const statisticsPanel = document.createElement("div");
   statisticsPanel.className = "ytp-panel";
   statisticsPanel.hidden = true;
@@ -438,14 +514,33 @@ function createPanel(onChange, onReset, getSettings, getOverriddenKeys) {
       option.setAttribute("aria-checked", String(option.dataset.optionValue === value));
     }
   };
+  root.setAdjustmentSetting = (setting, value) => {
+    const input = root.querySelector(`[data-adjustment-input="${setting}"]`);
+    const output = root.querySelector(`[data-adjustment-value="${setting}"]`);
+    if (input) input.value = String(value);
+    if (output) output.textContent = formatAdjustmentValue(value);
+    const settings = getSettings();
+    const brightness = setting === "brightness" ? value : settings.brightness;
+    const contrast = setting === "contrast" ? value : settings.contrast;
+    const summary = root.querySelector('[data-value-for="videoAdjustments"]');
+    if (summary) {
+      summary.textContent = brightness === 0 && contrast === 0
+        ? "標準"
+        : `明 ${formatAdjustmentValue(brightness)} / コ ${formatAdjustmentValue(contrast)}`;
+    }
+  };
   root.syncSettings = (settings, overriddenKeys = []) => {
     root.setSetting("anime4k", getAnime4kSelection(settings));
     root.setSetting("colorRangeMode", settings.colorRangeMode);
+    root.setAdjustmentSetting("brightness", settings.brightness);
+    root.setAdjustmentSetting("contrast", settings.contrast);
     const overridden = new Set(overriddenKeys);
     for (const item of root.querySelectorAll("[data-setting-title]")) {
       const setting = item.dataset.submenuItem;
       const isOverridden = setting === "anime4k"
         ? isAnime4kOverridden(overriddenKeys)
+        : setting === "videoAdjustments"
+          ? overridden.has("brightness") || overridden.has("contrast")
         : overridden.has(setting);
       const badge = item.querySelector(`.${PANEL_CLASS}__session-badge`);
       if (badge) badge.hidden = !isOverridden;
@@ -533,7 +628,10 @@ export function createPlayerSettingsUi({ getSettings, getOverriddenKeys, getStat
   const sync = () => {
     if (!panel || !button) return;
     const settings = getSettings();
-    const filterEnabled = settings.enabled || settings.colorRangeMode !== "none";
+    const filterEnabled = settings.enabled
+      || settings.colorRangeMode !== "none"
+      || settings.brightness !== 0
+      || settings.contrast !== 0;
     button.classList.toggle("is-enabled", filterEnabled);
     button.title = filterEnabled ? "YouTube Video Filter設定（有効）" : "YouTube Video Filter設定（無効）";
     panel.syncSettings(settings, getOverriddenKeys());

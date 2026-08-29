@@ -2,7 +2,7 @@
 
 ## 目的
 
-YouTubeの動画へ、WebGPUを使用したAnime4Kアップスケーリングとカラーレンジ変換をリアルタイムに適用するManifest V3 Chrome拡張機能です。映像処理は端末内で完結し、動画フレームを外部へ送信しません。
+YouTubeの動画へ、WebGPUを使用したAnime4Kアップスケーリング、カラーレンジ変換、明るさ・コントラスト調整をリアルタイムに適用するManifest V3 Chrome拡張機能です。映像処理は端末内で完結し、動画フレームを外部へ送信しません。
 
 このファイルはリポジトリを探索するための索引です。挙動や設定について内容が食い違う場合は、実際のソースコード、`public/manifest.json`、`package.json`、`build.mjs`を優先してください。
 
@@ -42,12 +42,12 @@ YouTubeの動画へ、WebGPUを使用したAnime4Kアップスケーリングと
 - `src/player-settings.js`: YouTubeプレイヤー内の設定メニュー、タブ上書き表示、統計表示を構築
 - `src/anime4k-setting.js`: Anime4KのUI選択値と内部設定の変換
 - `src/optimistic-setting.js`: プレイヤー設定の楽観的更新と保存失敗時の復元
-- `src/settings-update.js`: 設定変更時に停止、再構築、カラーレンジだけの更新のどれを行うか判定
+- `src/settings-update.js`: 設定変更時に停止、再構築、表示用Uniform Bufferだけの更新のどれを行うか判定
 
 ### 映像処理
 
 - `src/content.js`: 動画検出、Canvas配置、Anime4Kプリセット構築、画面サイズ変更・YouTube内遷移・タブ表示状態への追従、失敗時の元映像復元を統括
-- `src/renderer.js`: 動画フレームをWebGPU Textureへ転送し、Anime4Kパイプラインとカラーレンジ変換を実行してCanvasへ描画
+- `src/renderer.js`: 動画フレームをWebGPU Textureへ転送し、Anime4Kパイプライン、カラーレンジ変換、明るさ・コントラスト調整を実行してCanvasへ描画
 - `src/input-transfer.js`: 動画からの直接転送を使用できるか画素サンプルで検証。判定不能または不一致なら2D OffscreenCanvasとImageBitmapの互換経路を使用
 - `src/webgpu-device.js`: 同一Content Script内で共有するWebGPU Deviceの取得、Device lost通知、ページ破棄時の解放
 - `src/gpu-resources.js`: Renderer固有のTexture、Buffer、Anime4Kパイプライン資源を重複なく解放
@@ -71,7 +71,7 @@ Anime4Kパイプラインの実装には`anime4k-webgpu`を使用します。Web
 
 1. Content ScriptがYouTubeの`video`要素を検出し、表示領域に合わせたCanvasを配置します。
 2. Rendererが動画フレームを入力Textureへ転送します。直接転送は初期画素検証に成功した環境だけで使用し、それ以外では2D CanvasとImageBitmapを経由します。
-3. Content Scriptが設定に応じたAnime4Kパイプラインを構築し、Rendererがカラーレンジ変換とともに実行します。
+3. Content Scriptが設定に応じたAnime4Kパイプラインを構築し、Rendererがカラーレンジ変換と明るさ・コントラスト調整を同じ表示パスで実行します。
 4. 処理結果をWebGPU Canvasへ描画し、約1秒間隔の入出力FPS、解像度、フレーム破棄率をプレイヤー内UIへ渡します。
 5. 初期化・実行時エラー、Device lost、互換性エラーでは処理を停止し、元の動画表示へ戻します。
 

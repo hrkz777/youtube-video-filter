@@ -21,6 +21,41 @@ label {
   margin-top: 5px;
 }
 
+.adjustment-section {
+  margin-top: 15px;
+  padding: 10px;
+  border: 1px solid #ddd;
+}
+
+.adjustment-section legend {
+  padding: 0 5px;
+  font-weight: bold;
+}
+
+.range-group + .range-group {
+  margin-top: 10px;
+}
+
+.range-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.range-heading label {
+  margin-top: 0;
+}
+
+.range-heading output {
+  min-width: 3.5em;
+  text-align: right;
+}
+
+.range-group input[type="range"] {
+  width: 100%;
+  margin: 5px 0 0;
+}
+
 #diagnostic-container[hidden] {
   display: none;
 }
