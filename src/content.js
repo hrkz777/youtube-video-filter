@@ -22,6 +22,7 @@ import { createPlayerSettingsUi } from "./player-settings.js";
 import { createFilterFailureRegistry, getFilterCompatibilityError } from "./filter-failure.js";
 import { disposeWebGpuDevice, subscribeWebGpuDeviceLoss } from "./webgpu-device.js";
 import { shouldRestartForResize } from "./resize-policy.js";
+import { getVideoBackingSize } from "./video-viewport.js";
 import {
   DEFAULT_SETTINGS,
   hasVideoAdjustments,
@@ -236,15 +237,15 @@ function waitForVideoMetadata(video) {
 
 function getCanvasSize(video) {
   const bounds = video.getBoundingClientRect();
-  const maximumDimension = 4096;
-  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-  const requestedWidth = Math.max(1, Math.round(bounds.width * pixelRatio));
-  const requestedHeight = Math.max(1, Math.round(bounds.height * pixelRatio));
-  const scale = Math.min(1, maximumDimension / Math.max(requestedWidth, requestedHeight));
-
-  const width = Math.max(1, Math.round(requestedWidth * scale));
-  const height = Math.max(1, Math.round(requestedHeight * scale));
-  return { width, height };
+  return getVideoBackingSize({
+    sourceWidth: video.videoWidth,
+    sourceHeight: video.videoHeight,
+    boxWidth: bounds.width,
+    boxHeight: bounds.height,
+    objectFit: getComputedStyle(video).objectFit,
+    pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+    maximumDimension: 4096
+  });
 }
 
 function setCanvasSize(canvas, size) {
@@ -260,7 +261,7 @@ function createCanvas(video, onTargetSizeChange) {
   Object.assign(canvas.style, {
     position: "absolute",
     inset: "auto",
-    objectFit: "contain",
+    boxSizing: "border-box",
     pointerEvents: "none",
     zIndex: "1"
   });
@@ -278,11 +279,29 @@ function createCanvas(video, onTargetSizeChange) {
     if (!video.isConnected || !canvas.isConnected) return;
     const videoBounds = video.getBoundingClientRect();
     const containerBounds = container.getBoundingClientRect();
-    Object.assign(canvas.style, {
-      left: `${videoBounds.left - containerBounds.left}px`,
-      top: `${videoBounds.top - containerBounds.top}px`,
-      width: `${videoBounds.width}px`,
-      height: `${videoBounds.height}px`
+    const videoStyle = getComputedStyle(video);
+    const sharesLocalCoordinates = video.offsetParent === container
+      && canvas.offsetParent === container;
+    const layout = sharesLocalCoordinates
+      ? {
+        left: `${video.offsetLeft}px`,
+        top: `${video.offsetTop}px`,
+        width: `${video.offsetWidth}px`,
+        height: `${video.offsetHeight}px`,
+        transform: videoStyle.transform,
+        transformOrigin: videoStyle.transformOrigin
+      }
+      : {
+        left: `${videoBounds.left - containerBounds.left}px`,
+        top: `${videoBounds.top - containerBounds.top}px`,
+        width: `${videoBounds.width}px`,
+        height: `${videoBounds.height}px`,
+        transform: "none",
+        transformOrigin: "center"
+      };
+    Object.assign(canvas.style, layout, {
+      objectFit: videoStyle.objectFit,
+      objectPosition: videoStyle.objectPosition
     });
     const nextTargetSize = getCanvasSize(video);
     if (!targetSize) {

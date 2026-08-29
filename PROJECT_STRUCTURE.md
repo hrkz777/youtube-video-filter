@@ -53,6 +53,7 @@ YouTubeの動画へ、WebGPUを使用したAnime4Kアップスケーリング、
 - `src/gpu-resources.js`: Renderer固有のTexture、Buffer、Anime4Kパイプライン資源を重複なく解放
 - `src/filter-failure.js`: 動画・設定ごとの互換性エラーと再試行抑制を管理
 - `src/resize-policy.js`: 表示サイズ変更時にRendererを再構築するか判定
+- `src/video-viewport.js`: 動画の内在アスペクト比と`object-fit`を保つCanvasバッキング寸法を計算
 
 Anime4Kパイプラインの実装には`anime4k-webgpu`を使用します。WebGPU DeviceはContent Script内で再利用し、Renderer停止時にはRenderer固有資源だけを解放します。
 
