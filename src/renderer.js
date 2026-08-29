@@ -35,6 +35,9 @@ const FRAGMENT_SHADER = /* wgsl */ `
 
 struct DisplaySettings {
   colorRangeMode: u32,
+  brightness: f32,
+  contrast: f32,
+  padding: f32,
 }
 @group(0) @binding(2) var<uniform> displaySettings: DisplaySettings;
 
@@ -48,6 +51,11 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     // 8-bit full range (0-255) to limited range (16-235)
     color = vec4f(clamp(color.rgb * (219.0 / 255.0) + vec3f(16.0 / 255.0), vec3f(0.0), vec3f(1.0)), color.a);
   }
+  // カラーレンジ変換後のRGBへ、一般的な表示調整を適用する。
+  color = vec4f(
+    clamp((color.rgb - vec3f(0.5)) * displaySettings.contrast + vec3f(0.5 + displaySettings.brightness), vec3f(0.0), vec3f(1.0)),
+    color.a
+  );
   return color;
 }
 `;
@@ -59,6 +67,15 @@ const COLOR_RANGE_MODE_VALUES = {
 };
 const MAX_INPUT_FRAME_DRIFT_SECONDS = 0.1;
 const FRAME_STATS_INTERVAL_MILLISECONDS = 1000;
+
+export function createDisplaySettingsData(colorRangeMode, brightness = 0, contrast = 0) {
+  const data = new ArrayBuffer(16);
+  new Uint32Array(data)[0] = COLOR_RANGE_MODE_VALUES[colorRangeMode] ?? 0;
+  const floatValues = new Float32Array(data);
+  floatValues[1] = brightness / 100;
+  floatValues[2] = 1 + contrast / 100;
+  return data;
+}
 
 async function validateDirectVideoTransfer(device, video, inputTexture, bridgeContext) {
   const buffers = [];
@@ -152,6 +169,8 @@ export async function render({
   video,
   canvas,
   colorRangeMode,
+  brightness = 0,
+  contrast = 0,
   pipelineBuilder,
   onRuntimeError,
   onInputSample,
@@ -257,11 +276,13 @@ export async function render({
     });
     displaySettingsBuffer = device.createBuffer({
       label: "YouTube Video Filter display settings",
-      size: 4,
+      size: 16,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       mappedAtCreation: true
     });
-    new Uint32Array(displaySettingsBuffer.getMappedRange())[0] = COLOR_RANGE_MODE_VALUES[colorRangeMode] ?? 0;
+    new Uint8Array(displaySettingsBuffer.getMappedRange()).set(
+      new Uint8Array(createDisplaySettingsData(colorRangeMode, brightness, contrast))
+    );
     displaySettingsBuffer.unmap();
     bindGroup = device.createBindGroup({
       layout: bindGroupLayout,
@@ -565,13 +586,17 @@ export async function render({
     inputTransfer: useDirectVideoTransfer
       ? "direct-video-validated"
       : "2d-canvas-to-image-bitmap",
-    updateColorRangeMode(nextColorRangeMode) {
+    updateDisplaySettings(nextSettings) {
       if (stopped || resourcesReleased) return false;
       try {
         device.queue.writeBuffer(
           displaySettingsBuffer,
           0,
-          new Uint32Array([COLOR_RANGE_MODE_VALUES[nextColorRangeMode] ?? 0])
+          createDisplaySettingsData(
+            nextSettings.colorRangeMode,
+            nextSettings.brightness,
+            nextSettings.contrast
+          )
         );
         return true;
       } catch {

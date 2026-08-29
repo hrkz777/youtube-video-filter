@@ -1,4 +1,11 @@
-const FILTER_SETTING_KEYS = ["enabled", "profile", "colorRangeMode", "diagnosticStage"];
+const FILTER_SETTING_KEYS = [
+  "enabled",
+  "profile",
+  "colorRangeMode",
+  "brightness",
+  "contrast",
+  "diagnosticStage"
+];
 
 function createFailureKey(video, settings) {
   return JSON.stringify([

@@ -1,6 +1,9 @@
-const isFilterActive = (settings) => settings.enabled || settings.colorRangeMode !== "none";
+const isFilterActive = (settings) => settings.enabled
+  || settings.colorRangeMode !== "none"
+  || settings.brightness !== 0
+  || settings.contrast !== 0;
 
-export function getSettingsUpdateAction(previous, current, canUpdateColorRange) {
+export function getSettingsUpdateAction(previous, current, canUpdateDisplaySettings) {
   const wasActive = isFilterActive(previous);
   const isActive = isFilterActive(current);
   if (!isActive) return wasActive ? "stop" : "none";
@@ -11,8 +14,10 @@ export function getSettingsUpdateAction(previous, current, canUpdateColorRange) 
       || previous.diagnosticStage !== current.diagnosticStage)) {
     return "restart";
   }
-  if (previous.colorRangeMode !== current.colorRangeMode) {
-    return canUpdateColorRange ? "update-color-range" : "restart";
+  if (previous.colorRangeMode !== current.colorRangeMode
+    || previous.brightness !== current.brightness
+    || previous.contrast !== current.contrast) {
+    return canUpdateDisplaySettings ? "update-display-settings" : "restart";
   }
   return "none";
 }

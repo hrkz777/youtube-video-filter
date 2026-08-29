@@ -1,3 +1,8 @@
+export const VIDEO_ADJUSTMENT_DEFINITIONS = Object.freeze({
+  brightness: Object.freeze({ defaultValue: 0, minimum: -100, maximum: 100, step: 1 }),
+  contrast: Object.freeze({ defaultValue: 0, minimum: -100, maximum: 100, step: 1 })
+});
+
 const schema = Object.freeze({
   enabled: Object.freeze({ defaultValue: true, values: Object.freeze([true, false]) }),
   profile: Object.freeze({
@@ -17,6 +22,8 @@ const schema = Object.freeze({
     defaultValue: "none",
     values: Object.freeze(["none", "limited-to-full", "full-to-limited"])
   }),
+  brightness: VIDEO_ADJUSTMENT_DEFINITIONS.brightness,
+  contrast: VIDEO_ADJUSTMENT_DEFINITIONS.contrast,
   detailedLogging: Object.freeze({ defaultValue: false, values: Object.freeze([true, false]) }),
   diagnosticStage: Object.freeze({
     defaultValue: "full",
@@ -34,7 +41,13 @@ function getCanonicalSettingValue(key, value) {
 }
 
 export const SETTINGS_KEYS = Object.freeze(Object.keys(schema));
-export const TAB_SETTING_KEYS = Object.freeze(["enabled", "profile", "colorRangeMode"]);
+export const TAB_SETTING_KEYS = Object.freeze([
+  "enabled",
+  "profile",
+  "colorRangeMode",
+  "brightness",
+  "contrast"
+]);
 export const DEFAULT_SETTINGS = Object.freeze(Object.fromEntries(
   SETTINGS_KEYS.map((key) => [key, schema[key].defaultValue])
 ));
@@ -43,8 +56,15 @@ export const TAB_SETTINGS_DEFAULTS = Object.freeze(Object.fromEntries(
 ));
 
 export function isValidSettingValue(key, value) {
-  return Object.hasOwn(schema, key)
-    && schema[key].values.includes(getCanonicalSettingValue(key, value));
+  if (!Object.hasOwn(schema, key)) return false;
+  const definition = schema[key];
+  if (definition.values) {
+    return definition.values.includes(getCanonicalSettingValue(key, value));
+  }
+  return Number.isFinite(value)
+    && value >= definition.minimum
+    && value <= definition.maximum
+    && Number.isInteger((value - definition.minimum) / definition.step);
 }
 
 export function sanitizeSettings(settings, allowedKeys = SETTINGS_KEYS) {

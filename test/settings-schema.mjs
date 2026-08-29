@@ -3,6 +3,7 @@ import {
   DEFAULT_SETTINGS,
   TAB_SETTING_KEYS,
   TAB_SETTINGS_DEFAULTS,
+  VIDEO_ADJUSTMENT_DEFINITIONS,
   isValidSettingValue,
   normalizeSettings,
   sanitizeSettings,
@@ -13,14 +14,30 @@ assert.deepEqual(DEFAULT_SETTINGS, {
   enabled: true,
   profile: "auto",
   colorRangeMode: "none",
+  brightness: 0,
+  contrast: 0,
   detailedLogging: false,
   diagnosticStage: "full"
 });
-assert.deepEqual(TAB_SETTING_KEYS, ["enabled", "profile", "colorRangeMode"]);
+assert.deepEqual(TAB_SETTING_KEYS, [
+  "enabled",
+  "profile",
+  "colorRangeMode",
+  "brightness",
+  "contrast"
+]);
 assert.deepEqual(TAB_SETTINGS_DEFAULTS, {
   enabled: true,
   profile: "auto",
-  colorRangeMode: "none"
+  colorRangeMode: "none",
+  brightness: 0,
+  contrast: 0
+});
+assert.deepEqual(VIDEO_ADJUSTMENT_DEFINITIONS.brightness, {
+  defaultValue: 0,
+  minimum: -100,
+  maximum: 100,
+  step: 1
 });
 
 assert.equal(isValidSettingValue("profile", "mode-c"), true);
@@ -28,6 +45,12 @@ assert.equal(isValidSettingValue("profile", "mode-ca"), true);
 assert.equal(isValidSettingValue("profile", "mode-ac"), true);
 assert.equal(isValidSettingValue("profile", "invalid"), false);
 assert.equal(isValidSettingValue("enabled", 1), false);
+assert.equal(isValidSettingValue("brightness", -100), true);
+assert.equal(isValidSettingValue("brightness", 100), true);
+assert.equal(isValidSettingValue("contrast", 25), true);
+assert.equal(isValidSettingValue("brightness", 100.5), false);
+assert.equal(isValidSettingValue("contrast", Number.NaN), false);
+assert.equal(isValidSettingValue("contrast", 101), false);
 assert.deepEqual(normalizeSettings({ profile: "invalid", detailedLogging: true }), {
   ...DEFAULT_SETTINGS,
   detailedLogging: true
@@ -48,6 +71,10 @@ assert.deepEqual(
 assert.throws(
   () => validateSettingChanges({ profile: "invalid" }, TAB_SETTING_KEYS),
   /不正な設定値です: profile/
+);
+assert.throws(
+  () => validateSettingChanges({ brightness: -101, contrast: "10" }, TAB_SETTING_KEYS),
+  /不正な設定値です: brightness, contrast/
 );
 assert.throws(
   () => validateSettingChanges(null, TAB_SETTING_KEYS),
