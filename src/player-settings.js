@@ -15,6 +15,8 @@ const PANEL_CLASS = "ytp-youtube-filter-settings";
 const OPEN_CLASS = "ytp-youtube-filter-settings-open";
 const STYLE_ID = "youtube-video-filter-player-settings-style";
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+const ADJUSTMENT_PANEL_WIDTH = 600;
+const ADJUSTMENT_SLIDER_PREFERRED_WIDTH = 376;
 
 const ANIME4K_MODES = [
   [ANIME4K_OFF_VALUE, "オフ"],
@@ -94,6 +96,9 @@ const PLAYER_SETTINGS_CSS = `
   .${PANEL_CLASS}.${PANEL_CLASS}__selection-page.ytp-popup.ytp-settings-menu {
     width: min(251px, calc(100% - 24px));
   }
+  .${PANEL_CLASS}.${PANEL_CLASS}__adjustment-page.ytp-popup.ytp-settings-menu {
+    width: min(${ADJUSTMENT_PANEL_WIDTH}px, calc(100% - 24px));
+  }
   .${PANEL_CLASS}.ytp-popup.ytp-settings-menu:not([hidden]) {
     display: block !important;
     visibility: visible;
@@ -166,19 +171,22 @@ const PLAYER_SETTINGS_CSS = `
     cursor: default;
   }
   .${PANEL_CLASS} .${PANEL_CLASS}__adjustment .ytp-menuitem-label {
-    min-width: 92px;
+    flex: 0 0 92px;
+    min-width: 0;
     padding-left: 16px;
   }
   .${PANEL_CLASS} .${PANEL_CLASS}__adjustment-controls {
     display: flex;
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
     align-items: center;
     gap: 10px;
     padding-right: 16px;
   }
   .${PANEL_CLASS} .${PANEL_CLASS}__adjustment-controls input[type="range"] {
-    flex: 1;
-    min-width: 120px;
+    flex: 1 1 ${ADJUSTMENT_SLIDER_PREFERRED_WIDTH}px;
+    min-width: 0;
+    max-width: 100%;
   }
   .${PANEL_CLASS} .${PANEL_CLASS}__adjustment-controls output {
     width: 48px;
@@ -382,6 +390,7 @@ function createPanel(onChange, onPreview, onReset, getSettings, getOverriddenKey
   const showPage = (name, focus = true) => {
     currentPage = name;
     root.classList.toggle(`${PANEL_CLASS}__selection-page`, Object.hasOwn(SUBMENUS, name));
+    root.classList.toggle(`${PANEL_CLASS}__adjustment-page`, name === "videoAdjustments");
     for (const [pageName, page] of pages) page.hidden = pageName !== name;
     updateLayout();
     requestAnimationFrame(() => {
