@@ -16,7 +16,9 @@ const adjustmentControls = Object.fromEntries(adjustmentSettings.map((setting) =
   setting,
   {
     input: document.querySelector(`#${setting}`),
-    output: document.querySelector(`#${setting}-value`)
+    output: document.querySelector(`#${setting}-value`),
+    decrementButton: document.querySelector(`[data-adjustment-decrement="${setting}"]`),
+    incrementButton: document.querySelector(`[data-adjustment-increment="${setting}"]`)
   }
 ]));
 const detailedLoggingInput = document.querySelector("#detailed-logging");
@@ -45,19 +47,42 @@ function formatAdjustmentValue(setting, value) {
   return `${value > 0 ? "+" : ""}${value}${unit}`;
 }
 
-function configureAdjustmentInput(input, output, setting) {
+function formatAdjustmentStep(setting, step) {
+  return `${step}${setting === "hue" ? "度" : "%"}`;
+}
+
+function updateAdjustmentControl(control, setting) {
+  const { input, output, decrementButton, incrementButton } = control;
+  const definition = VIDEO_ADJUSTMENT_DEFINITIONS[setting];
+  const value = Number(input.value);
+  output.textContent = formatAdjustmentValue(setting, value);
+  decrementButton.disabled = input.disabled || value <= definition.minimum;
+  incrementButton.disabled = input.disabled || value >= definition.maximum;
+}
+
+function configureAdjustmentInput(control, setting) {
+  const { input, decrementButton, incrementButton } = control;
   const definition = VIDEO_ADJUSTMENT_DEFINITIONS[setting];
   input.min = String(definition.minimum);
   input.max = String(definition.maximum);
   input.step = String(definition.step);
-  input.addEventListener("input", () => {
-    output.textContent = formatAdjustmentValue(setting, Number(input.value));
+  const stepLabel = formatAdjustmentStep(setting, definition.step);
+  const label = document.querySelector(`label[for="${input.id}"]`)?.textContent ?? setting;
+  decrementButton.setAttribute("aria-label", `${label}を${stepLabel}下げる`);
+  incrementButton.setAttribute("aria-label", `${label}を${stepLabel}上げる`);
+  input.addEventListener("input", () => updateAdjustmentControl(control, setting));
+  decrementButton.addEventListener("click", () => {
+    input.stepDown();
+    input.dispatchEvent(new Event("input"));
+  });
+  incrementButton.addEventListener("click", () => {
+    input.stepUp();
+    input.dispatchEvent(new Event("input"));
   });
 }
 
 for (const setting of adjustmentSettings) {
-  const { input, output } = adjustmentControls[setting];
-  configureAdjustmentInput(input, output, setting);
+  configureAdjustmentInput(adjustmentControls[setting], setting);
 }
 
 function setFormValues(settings) {
@@ -66,9 +91,9 @@ function setFormValues(settings) {
   anime4kModeInput.value = getAnime4kSelection(settings);
   colorRangeInput.value = settings.colorRangeMode;
   for (const setting of adjustmentSettings) {
-    const { input, output } = adjustmentControls[setting];
+    const { input } = adjustmentControls[setting];
     input.value = String(settings[setting]);
-    output.textContent = formatAdjustmentValue(setting, settings[setting]);
+    updateAdjustmentControl(adjustmentControls[setting], setting);
   }
   detailedLoggingInput.checked = settings.detailedLogging;
   diagnosticStageInput.value = settings.diagnosticStage;
@@ -83,7 +108,11 @@ async function initialize() {
 function setFormDisabled(disabled) {
   anime4kModeInput.disabled = disabled;
   colorRangeInput.disabled = disabled;
-  for (const { input } of Object.values(adjustmentControls)) input.disabled = disabled;
+  for (const setting of adjustmentSettings) {
+    const control = adjustmentControls[setting];
+    control.input.disabled = disabled;
+    updateAdjustmentControl(control, setting);
+  }
   detailedLoggingInput.disabled = disabled;
   diagnosticStageInput.disabled = disabled;
   saveButton.disabled = disabled;
