@@ -41,35 +41,55 @@
             <label for="brightness">明るさ</label>
             <output id="brightness-value" for="brightness">0%</output>
           </div>
-          <input id="brightness" type="range" value="0">
+          <div class="range-controls">
+            <button class="adjustment-step-button" type="button" data-adjustment-decrement="brightness" aria-label="明るさを下げる">−</button>
+            <input id="brightness" type="range" value="0">
+            <button class="adjustment-step-button" type="button" data-adjustment-increment="brightness" aria-label="明るさを上げる">+</button>
+          </div>
         </div>
         <div class="range-group">
           <div class="range-heading">
             <label for="contrast">コントラスト</label>
             <output id="contrast-value" for="contrast">0%</output>
           </div>
-          <input id="contrast" type="range" value="0">
+          <div class="range-controls">
+            <button class="adjustment-step-button" type="button" data-adjustment-decrement="contrast" aria-label="コントラストを下げる">−</button>
+            <input id="contrast" type="range" value="0">
+            <button class="adjustment-step-button" type="button" data-adjustment-increment="contrast" aria-label="コントラストを上げる">+</button>
+          </div>
         </div>
         <div class="range-group">
           <div class="range-heading">
             <label for="saturation">彩度</label>
             <output id="saturation-value" for="saturation">0%</output>
           </div>
-          <input id="saturation" type="range" value="0">
+          <div class="range-controls">
+            <button class="adjustment-step-button" type="button" data-adjustment-decrement="saturation" aria-label="彩度を下げる">−</button>
+            <input id="saturation" type="range" value="0">
+            <button class="adjustment-step-button" type="button" data-adjustment-increment="saturation" aria-label="彩度を上げる">+</button>
+          </div>
         </div>
         <div class="range-group">
           <div class="range-heading">
             <label for="gamma">ガンマ</label>
             <output id="gamma-value" for="gamma">100%</output>
           </div>
-          <input id="gamma" type="range" value="100">
+          <div class="range-controls">
+            <button class="adjustment-step-button" type="button" data-adjustment-decrement="gamma" aria-label="ガンマを下げる">−</button>
+            <input id="gamma" type="range" value="100">
+            <button class="adjustment-step-button" type="button" data-adjustment-increment="gamma" aria-label="ガンマを上げる">+</button>
+          </div>
         </div>
         <div class="range-group">
           <div class="range-heading">
             <label for="hue">色相</label>
             <output id="hue-value" for="hue">0°</output>
           </div>
-          <input id="hue" type="range" value="0">
+          <div class="range-controls">
+            <button class="adjustment-step-button" type="button" data-adjustment-decrement="hue" aria-label="色相を下げる">−</button>
+            <input id="hue" type="range" value="0">
+            <button class="adjustment-step-button" type="button" data-adjustment-increment="hue" aria-label="色相を上げる">+</button>
+          </div>
         </div>
       </fieldset>
 

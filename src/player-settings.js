@@ -180,7 +180,7 @@ const PLAYER_SETTINGS_CSS = `
     flex: 1 1 auto;
     min-width: 0;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
     padding-right: 16px;
   }
   .${PANEL_CLASS} .${PANEL_CLASS}__adjustment-controls input[type="range"] {
@@ -192,12 +192,33 @@ const PLAYER_SETTINGS_CSS = `
     width: 48px;
     text-align: right;
   }
+  .${PANEL_CLASS} .${PANEL_CLASS}__adjustment-step {
+    flex: 0 0 24px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, .45);
+    border-radius: 3px;
+    background: rgba(255, 255, 255, .08);
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    line-height: 20px;
+  }
+  .${PANEL_CLASS} .${PANEL_CLASS}__adjustment-step:disabled {
+    cursor: default;
+    opacity: .4;
+  }
 `;
 
 function formatAdjustmentValue(setting, value) {
   if (setting === "gamma") return `${value}%`;
   const unit = setting === "hue" ? "°" : "%";
   return `${value > 0 ? "+" : ""}${value}${unit}`;
+}
+
+function formatAdjustmentStep(setting, step) {
+  return `${step}${setting === "hue" ? "度" : "%"}`;
 }
 
 function getAdjustmentSummary(settings) {
@@ -504,6 +525,18 @@ function createPanel(onChange, onPreview, onReset, getSettings, getOverriddenKey
     input.step = String(definition.step);
     input.dataset.adjustmentInput = setting;
     input.setAttribute("aria-label", label);
+    const decrementButton = document.createElement("button");
+    decrementButton.type = "button";
+    decrementButton.className = `${PANEL_CLASS}__adjustment-step`;
+    decrementButton.dataset.adjustmentDecrement = setting;
+    decrementButton.setAttribute("aria-label", `${label}を${formatAdjustmentStep(setting, definition.step)}下げる`);
+    decrementButton.textContent = "−";
+    const incrementButton = document.createElement("button");
+    incrementButton.type = "button";
+    incrementButton.className = `${PANEL_CLASS}__adjustment-step`;
+    incrementButton.dataset.adjustmentIncrement = setting;
+    incrementButton.setAttribute("aria-label", `${label}を${formatAdjustmentStep(setting, definition.step)}上げる`);
+    incrementButton.textContent = "+";
     const output = document.createElement("output");
     output.dataset.adjustmentValue = setting;
     input.addEventListener("input", () => {
@@ -512,7 +545,19 @@ function createPanel(onChange, onPreview, onReset, getSettings, getOverriddenKey
       onPreview({ [setting]: value });
     });
     input.addEventListener("change", () => saveChange({ [setting]: Number(input.value) }));
-    controls.append(input, output);
+    decrementButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      input.stepDown();
+      input.dispatchEvent(new Event("input"));
+      input.dispatchEvent(new Event("change"));
+    });
+    incrementButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      input.stepUp();
+      input.dispatchEvent(new Event("input"));
+      input.dispatchEvent(new Event("change"));
+    });
+    controls.append(decrementButton, input, incrementButton, output);
     item.append(createMenuLabel(label), controls);
     adjustmentsMenu.append(item);
   }
@@ -551,8 +596,13 @@ function createPanel(onChange, onPreview, onReset, getSettings, getOverriddenKey
   root.setAdjustmentSetting = (setting, value) => {
     const input = root.querySelector(`[data-adjustment-input="${setting}"]`);
     const output = root.querySelector(`[data-adjustment-value="${setting}"]`);
+    const decrementButton = root.querySelector(`[data-adjustment-decrement="${setting}"]`);
+    const incrementButton = root.querySelector(`[data-adjustment-increment="${setting}"]`);
+    const definition = VIDEO_ADJUSTMENT_DEFINITIONS[setting];
     if (input) input.value = String(value);
     if (output) output.textContent = formatAdjustmentValue(setting, value);
+    if (decrementButton) decrementButton.disabled = value <= definition.minimum;
+    if (incrementButton) incrementButton.disabled = value >= definition.maximum;
     const settings = { ...getSettings(), [setting]: value };
     const summary = root.querySelector('[data-value-for="videoAdjustments"]');
     if (summary) summary.textContent = getAdjustmentSummary(settings);
