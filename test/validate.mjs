@@ -130,6 +130,10 @@ assert.match(playerSettingsSource, /ADJUSTMENT_SLIDER_PREFERRED_WIDTH\s*=\s*376/
 assert.match(playerSettingsSource, /PANEL_CLASS}__adjustment-page/);
 assert.match(playerSettingsSource, /flex:\s*0 0 92px/);
 assert.match(playerSettingsSource, /flex:\s*1 1 \$\{ADJUSTMENT_SLIDER_PREFERRED_WIDTH\}px/);
+assert.match(playerSettingsSource, /input\.stepDown\(\)/);
+assert.match(playerSettingsSource, /input\.stepUp\(\)/);
+assert.match(playerSettingsSource, /decrementButton\.disabled = value <= definition\.minimum/);
+assert.match(playerSettingsSource, /incrementButton\.disabled = value >= definition\.maximum/);
 assert.match(playerSettingsSource, /element\.addEventListener\("click", \(event\) => \{/);
 assert.match(playerSettingsSource, /event\.stopPropagation\(\);\s+activate\(\);/);
 assert.match(playerSettingsSource, /入力FPS/);
@@ -269,12 +273,18 @@ assert.match(contentBundle, /full-to-limited/);
 assert.match(contentBundle, /255\.0\s*\/\s*219\.0/);
 assert.match(contentBundle, /219\.0\s*\/\s*255\.0/);
 assert.match(popupDocument, /id="color-range-mode"/);
-assert.match(popupStyles, /min-width:\s*420px/);
+assert.match(popupStyles, /min-width:\s*480px/);
 assert.match(popupDocument, /id="anime4k-mode"/);
 for (const setting of ["brightness", "contrast", "saturation", "gamma", "hue"]) {
   assert.match(popupDocument, new RegExp(`id="${setting}"`));
   assert.match(popupDocument, new RegExp(`id="${setting}-value"`));
+  assert.match(popupDocument, new RegExp(`data-adjustment-decrement="${setting}"`));
+  assert.match(popupDocument, new RegExp(`data-adjustment-increment="${setting}"`));
 }
+assert.match(popupSource, /input\.stepDown\(\)/);
+assert.match(popupSource, /input\.stepUp\(\)/);
+assert.match(popupSource, /value <= definition\.minimum/);
+assert.match(popupSource, /value >= definition\.maximum/);
 assert.match(popupDocument, /value="off">オフ/);
 assert.doesNotMatch(popupDocument, /id="enabled"/);
 assert.doesNotMatch(popupDocument, /Anime4Kを有効にする/);
